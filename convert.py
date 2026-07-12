@@ -1,17 +1,17 @@
 """
-PDF-to-EPUB Dönüştürücü
-=======================
-Bu script PDF dosyalarını yüksek kaliteli EPUB formatına dönüştürür.
+PDF to EPUB Converter
+=====================
+Converts PDF files to high-quality EPUB format using AI-powered OCR.
 
-Kullanım:
-    python convert.py                          # interaktif mod
-    python convert.py input.pdf                # tek dosya
-    python convert.py input.pdf -o kitap.epub  # çıktı adı belirle
-    python convert.py input.pdf --title "Kitap Adı" --author "Yazar" --publisher "Yayınevi"
+Usage:
+    python convert.py                          # interactive mode
+    python convert.py input.pdf                # single file
+    python convert.py input.pdf -o book.epub   # specify output name
+    python convert.py input.pdf --title "Book Title" --author "Author" --publisher "Publisher"
 
-Gereksinimler:
-    - NVIDIA GPU (en az 8GB VRAM)
-    - PyTorch (CUDA destekli)
+Requirements:
+    - NVIDIA GPU (min. 8GB VRAM)
+    - PyTorch (with CUDA support)
     - pdf-craft
     - pandoc
     - poppler
@@ -27,7 +27,7 @@ from pathlib import Path
 
 
 # ============================================================
-# Sabİtler
+# Constants
 # ============================================================
 SCRIPT_DIR = Path(__file__).parent.resolve()
 MODELS_DIR = SCRIPT_DIR / "models"
@@ -37,10 +37,10 @@ OUTPUT_DIR = SCRIPT_DIR / "output"
 
 
 # ============================================================
-# Yardımcı fonksiyonlar
+# Helpers
 # ============================================================
 def print_header(text: str) -> None:
-    """Renkli başlık yazdır."""
+    """Print a colored section header."""
     border = "=" * 50
     print(f"\n\033[96m{border}\033[0m")
     print(f"\033[96m  {text}\033[0m")
@@ -48,104 +48,104 @@ def print_header(text: str) -> None:
 
 
 def print_step(step: int, total: int, text: str) -> None:
-    """Adım bilgisi yazdır."""
+    """Print a numbered step line."""
     print(f"\033[92m[{step}/{total}]\033[0m {text}")
 
 
 def print_warn(text: str) -> None:
-    """Uyarı mesajı yazdır."""
-    print(f"\033[93m[UYARI]\033[0m {text}")
+    """Print a warning message."""
+    print(f"\033[93m[WARN]\033[0m {text}")
 
 
 def print_error(text: str) -> None:
-    """Hata mesajı yazdır."""
-    print(f"\033[91m[HATA]\033[0m {text}")
+    """Print an error message."""
+    print(f"\033[91m[ERROR]\033[0m {text}")
 
 
 def print_success(text: str) -> None:
-    """Başarı mesajı yazdır."""
+    """Print a success message."""
     print(f"\033[92m[OK]\033[0m {text}")
 
 
 def print_info(text: str) -> None:
-    """Bilgi mesajı yazdır."""
+    """Print an info message."""
     print(f"\033[90m     {text}\033[0m")
 
 
 def check_cuda() -> bool:
-    """CUDA kullanılabilirliğini kontrol et."""
+    """Check CUDA availability."""
     try:
         import torch
         if torch.cuda.is_available():
             gpu_name = torch.cuda.get_device_name(0)
             vram = torch.cuda.get_device_properties(0).total_memory / (1024**3)
-            print_success(f"CUDA aktif — {gpu_name} ({vram:.1f} GB VRAM)")
+            print_success(f"CUDA active — {gpu_name} ({vram:.1f} GB VRAM)")
             return True
         else:
-            print_warn("CUDA bulunamadı! İşlem CPU ile devam edecek (çok yavaş olabilir).")
+            print_warn("CUDA not found! Processing will continue on CPU (very slow).")
             return False
     except ImportError:
-        print_error("PyTorch kurulu değil! Önce setup.ps1 çalıştırın.")
+        print_error("PyTorch is not installed! Run setup.ps1 first.")
         sys.exit(1)
 
 
 def check_pandoc() -> bool:
-    """Pandoc kurulumunu kontrol et."""
+    """Check if Pandoc is installed."""
     if shutil.which("pandoc"):
-        print_success("Pandoc bulundu.")
+        print_success("Pandoc found.")
         return True
     else:
-        print_error("Pandoc bulunamadı! Lütfen kurun: winget install JohnMacFarlane.Pandoc")
+        print_error("Pandoc not found! Install it: winget install JohnMacFarlane.Pandoc")
         return False
 
 
 def find_pdf_files() -> list[Path]:
-    """input/ klasöründeki PDF dosyalarını bul."""
+    """Find PDF files in the input/ directory."""
     if not INPUT_DIR.exists():
         INPUT_DIR.mkdir(parents=True, exist_ok=True)
     return sorted(INPUT_DIR.glob("*.pdf"))
 
 
 def select_pdf_interactive() -> Path:
-    """Kullanıcıdan PDF seçmesini iste."""
+    """Prompt the user to select a PDF file."""
     pdf_files = find_pdf_files()
 
     if not pdf_files:
-        print_error(f"'{INPUT_DIR}' klasöründe hiç PDF dosyası bulunamadı!")
-        print_info("PDF dosyanızı şu klasöre koyun ve tekrar çalıştırın:")
+        print_error(f"No PDF files found in '{INPUT_DIR}'!")
+        print_info("Place your PDF file in the following folder and run again:")
         print_info(f"  {INPUT_DIR}")
         sys.exit(1)
 
     if len(pdf_files) == 1:
-        print_success(f"PDF bulundu: {pdf_files[0].name}")
+        print_success(f"PDF found: {pdf_files[0].name}")
         return pdf_files[0]
 
-    print("\nMevcut PDF dosyaları:")
+    print("\nAvailable PDF files:")
     for i, pdf in enumerate(pdf_files, 1):
         size_mb = pdf.stat().st_size / (1024 * 1024)
         print(f"  \033[96m{i}.\033[0m {pdf.name} ({size_mb:.1f} MB)")
 
     while True:
         try:
-            choice = input(f"\nHangi PDF'i dönüştürmek istiyorsunuz? (1-{len(pdf_files)}): ").strip()
+            choice = input(f"\nWhich PDF do you want to convert? (1-{len(pdf_files)}): ").strip()
             idx = int(choice) - 1
             if 0 <= idx < len(pdf_files):
                 return pdf_files[idx]
         except (ValueError, IndexError):
             pass
-        print_warn("Geçersiz seçim, tekrar deneyin.")
+        print_warn("Invalid selection, please try again.")
 
 
 def get_metadata_interactive(pdf_name: str) -> dict:
-    """Kullanıcıdan kitap bilgilerini al."""
+    """Prompt the user for book metadata."""
     stem = Path(pdf_name).stem
 
-    print("\n\033[96mKitap Bilgileri\033[0m (boş bırakırsanız varsayılan kullanılır):")
+    print("\n\033[96mBook Details\033[0m (leave blank to use defaults):")
 
-    title = input(f"  Kitap Adı [{stem}]: ").strip() or stem
-    author = input("  Yazar [Bilinmiyor]: ").strip() or "Bilinmiyor"
-    publisher = input("  Yayınevi []: ").strip() or ""
-    lang = input("  Dil [tr]: ").strip() or "tr"
+    title = input(f"  Title [{stem}]: ").strip() or stem
+    author = input("  Author [Unknown]: ").strip() or "Unknown"
+    publisher = input("  Publisher []: ").strip() or ""
+    lang = input("  Language [en]: ").strip() or "en"
 
     return {
         "title": title,
@@ -156,39 +156,39 @@ def get_metadata_interactive(pdf_name: str) -> dict:
 
 
 # ============================================================
-# Ana dönüşüm fonksiyonları
+# Conversion steps
 # ============================================================
 def step_download_models() -> None:
-    """OCR modellerini indir (ilk sefer uzun sürer)."""
+    """Download OCR models (slow on first run, fast afterwards)."""
     from pdf_craft import predownload_models
 
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
-    print_info("Modeller indiriliyor/kontrol ediliyor...")
-    print_info(f"Önbellek konumu: {MODELS_DIR}")
+    print_info("Checking/downloading models...")
+    print_info(f"Cache location: {MODELS_DIR}")
     predownload_models(models_cache_path=str(MODELS_DIR))
-    print_success("Modeller hazır.")
+    print_success("Models ready.")
 
 
 def step_convert_to_markdown(pdf_path: Path, md_path: Path, images_dir: Path) -> None:
-    """PDF'i Markdown'a dönüştür (ana OCR işlemi)."""
+    """Convert PDF to Markdown (main OCR step)."""
     from pdf_craft import transform_markdown
 
     TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Sayfa sayısını tahmin et
+    # Estimate page count and time
     try:
         import fitz  # PyMuPDF
         doc = fitz.open(str(pdf_path))
         page_count = len(doc)
         doc.close()
-        estimated_time = page_count * 27  # ~27 saniye/sayfa
-        print_info(f"Toplam sayfa: {page_count}")
-        print_info(f"Tahmini süre: ~{estimated_time // 60} dakika {estimated_time % 60} saniye")
+        estimated_time = page_count * 27  # ~27 seconds per page
+        print_info(f"Total pages: {page_count}")
+        print_info(f"Estimated time: ~{estimated_time // 60}min {estimated_time % 60}sec")
     except ImportError:
-        print_info("(Sayfa sayısı tahmin edilemiyor — PyMuPDF kurulu değil)")
+        print_info("(Page count unavailable — PyMuPDF not installed)")
 
-    print_info("Her sayfa için ~25-30 saniye sürecek.")
-    print_info("İşlem sırasında 'torch.Size' ve 'attention_mask' uyarıları normaldir.\n")
+    print_info("Each page takes ~25-30 seconds.")
+    print_info("'torch.Size' and 'attention_mask' warnings during processing are normal.\n")
 
     start_time = time.time()
 
@@ -197,7 +197,7 @@ def step_convert_to_markdown(pdf_path: Path, md_path: Path, images_dir: Path) ->
         markdown_path=str(md_path),
         markdown_assets_path=str(images_dir),
         analysing_path=str(TEMP_DIR),
-        ocr_size="gundam",  # en yüksek kalite (8GB VRAM yeterli)
+        ocr_size="gundam",  # highest quality model (8GB VRAM is sufficient)
         models_cache_path=str(MODELS_DIR),
         dpi=300,
     )
@@ -205,36 +205,35 @@ def step_convert_to_markdown(pdf_path: Path, md_path: Path, images_dir: Path) ->
     elapsed = time.time() - start_time
     minutes = int(elapsed // 60)
     seconds = int(elapsed % 60)
-    print_success(f"Markdown dönüşümü tamamlandı! (Süre: {minutes}dk {seconds}sn)")
+    print_success(f"Markdown conversion complete! (Time: {minutes}min {seconds}sec)")
 
 
 def step_fix_hyphenation(md_path: Path) -> None:
-    """Satır sonu heceleme tirelerini düzelt.
-    
-    PDF'lerde satır sonunda kelime sığmadığında tire ile bölünür:
-      'popu-\nlerliğini' → 'popülerliğini'
-      'bi-\nlimkurgu'   → 'bilimkurgu'
-    
-    Bu fonksiyon bu tireleri tespit edip kelimeleri birleştirir.
+    """Fix line-end hyphenation artifacts from PDF scanning.
+
+    PDFs often split words across lines with a hyphen:
+      'popu-\\npularity' → 'popularity'
+      'bi-\\nlingual'    → 'bilingual'
+
+    This function detects and merges those broken words.
     """
     if not md_path.exists():
-        print_warn("Markdown dosyası bulunamadı, heceleme düzeltmesi atlandı.")
+        print_warn("Markdown file not found, skipping hyphenation fix.")
         return
 
     content = md_path.read_text(encoding="utf-8")
-    original_length = len(content)
 
-    # Satır sonundaki heceleme tirelerini düzelt:
-    # Bir harf + tire + satır sonu + küçük harf → kelimeleri birleştir
-    # Örn: "popu-\nlerliğini" → "popülerliğini"
+    # Fix line-end hyphens:
+    # letter + hyphen + newline + lowercase letter → merge words
+    # e.g. "popu-\npularity" → "popularity"
     fixed = re.sub(
         r'(\w)-\n(\s*)(\w)',
         lambda m: m.group(1) + m.group(3) if m.group(3).islower() else m.group(0),
         content
     )
 
-    # Ayrıca satır içi kırık tireleri de düzelt:
-    # "popu- lerliğini" → "popülerliğini" (tire + boşluk + küçük harf)
+    # Fix inline broken hyphens:
+    # "popu- larity" → "popularity" (hyphen + space + lowercase)
     fixed = re.sub(
         r'(\w)- (\w)',
         lambda m: m.group(1) + m.group(2) if m.group(2).islower() else m.group(0),
@@ -242,34 +241,34 @@ def step_fix_hyphenation(md_path: Path) -> None:
     )
 
     fix_count = content.count('-\n') - fixed.count('-\n')
-    
+
     md_path.write_text(fixed, encoding="utf-8")
-    print_success(f"Heceleme tireleri düzeltildi ({fix_count} düzeltme yapıldı).")
+    print_success(f"Hyphenation fixed ({fix_count} corrections applied).")
 
 
 def step_copy_images(images_dir: Path, media_dir: Path) -> None:
-    """Resimleri media klasörüne kopyala."""
+    """Copy extracted images to the media folder."""
     if media_dir.exists():
         shutil.rmtree(media_dir)
 
     if images_dir.exists() and any(images_dir.iterdir()):
         shutil.copytree(images_dir, media_dir)
         image_count = len(list(media_dir.glob("*")))
-        print_success(f"Resimler media klasörüne kopyalandı ({image_count} dosya).")
+        print_success(f"Images copied to media folder ({image_count} files).")
     else:
         media_dir.mkdir(parents=True, exist_ok=True)
-        print_warn("Resim bulunamadı (metin-ağırlıklı PDF olabilir).")
+        print_warn("No images found (text-only PDF?).")
 
 
 def step_create_epub(md_path: Path, epub_path: Path, media_dir: Path, metadata: dict) -> None:
-    """Markdown'dan EPUB oluştur (Pandoc ile)."""
+    """Build EPUB from Markdown using Pandoc."""
     style_css = SCRIPT_DIR / "style.css"
     style_args = []
     if style_css.exists():
-        print_success("style.css şablonu bulundu, uygulanıyor.")
+        print_success("style.css found, applying stylesheet.")
         style_args = [f"--css={style_css}"]
     else:
-        print_info("style.css bulunamadı, standart EPUB üretilecek.")
+        print_info("style.css not found, generating standard EPUB.")
 
     cmd = [
         "pandoc",
@@ -291,17 +290,17 @@ def step_create_epub(md_path: Path, epub_path: Path, media_dir: Path, metadata: 
     result = subprocess.run(cmd, capture_output=True, text=True)
 
     if result.returncode != 0:
-        print_error(f"Pandoc hatası: {result.stderr}")
+        print_error(f"Pandoc error: {result.stderr}")
         sys.exit(1)
 
     size_mb = epub_path.stat().st_size / (1024 * 1024)
-    print_success(f"EPUB oluşturuldu: {epub_path.name} ({size_mb:.1f} MB)")
+    print_success(f"EPUB created: {epub_path.name} ({size_mb:.1f} MB)")
 
 
 def step_cleanup(md_path: Path, images_dir: Path, media_dir: Path) -> None:
-    """Geçici dosyaları temizle (isteğe bağlı)."""
-    answer = input("\nGeçici dosyalar (markdown, resimler) silinsin mi? (e/h) [h]: ").strip().lower()
-    if answer == "e":
+    """Optionally remove temporary files."""
+    answer = input("\nDelete temporary files (markdown, images)? (y/n) [n]: ").strip().lower()
+    if answer == "y":
         if md_path.exists():
             md_path.unlink()
         if images_dir.exists():
@@ -310,76 +309,76 @@ def step_cleanup(md_path: Path, images_dir: Path, media_dir: Path) -> None:
             shutil.rmtree(media_dir)
         if TEMP_DIR.exists():
             shutil.rmtree(TEMP_DIR)
-        print_success("Geçici dosyalar temizlendi.")
+        print_success("Temporary files deleted.")
     else:
-        print_info(f"Markdown dosyası korundu: {md_path}")
+        print_info(f"Markdown file kept: {md_path}")
 
 
 # ============================================================
-# Ana program
+# Main
 # ============================================================
 def main():
     parser = argparse.ArgumentParser(
-        description="PDF dosyalarını yüksek kaliteli EPUB formatına dönüştürür.",
+        description="Convert PDF files to high-quality EPUB format.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Örnekler:
-  python convert.py                                    # interaktif mod
-  python convert.py input/kitap.pdf                    # tek dosya
-  python convert.py input/kitap.pdf -o output/kitap.epub
-  python convert.py input/kitap.pdf --title "Kitap" --author "Yazar"
+Examples:
+  python convert.py                                       # interactive mode
+  python convert.py input/book.pdf                        # single file
+  python convert.py input/book.pdf -o output/book.epub
+  python convert.py input/book.pdf --title "Book" --author "Author"
         """,
     )
-    parser.add_argument("pdf", nargs="?", help="Dönüştürülecek PDF dosyasının yolu")
-    parser.add_argument("-o", "--output", help="Çıktı EPUB dosyasının yolu")
-    parser.add_argument("--title", help="Kitap adı")
-    parser.add_argument("--author", help="Yazar adı")
-    parser.add_argument("--publisher", help="Yayınevi adı")
-    parser.add_argument("--lang", default="tr", help="Dil kodu (varsayılan: tr)")
+    parser.add_argument("pdf", nargs="?", help="Path to the PDF file to convert")
+    parser.add_argument("-o", "--output", help="Output EPUB file path")
+    parser.add_argument("--title", help="Book title")
+    parser.add_argument("--author", help="Author name")
+    parser.add_argument("--publisher", help="Publisher name")
+    parser.add_argument("--lang", default="en", help="Language code (default: en)")
     parser.add_argument(
         "--ocr-size",
         default="gundam",
         choices=["tiny", "small", "base", "large", "gundam"],
-        help="OCR model boyutu (varsayılan: gundam — en yüksek kalite)",
+        help="OCR model size (default: gundam — highest quality)",
     )
-    parser.add_argument("--dpi", type=int, default=300, help="DPI değeri (varsayılan: 300)")
-    parser.add_argument("--no-cleanup", action="store_true", help="Temizleme sorusu sorma")
+    parser.add_argument("--dpi", type=int, default=300, help="Scan DPI (default: 300)")
+    parser.add_argument("--no-cleanup", action="store_true", help="Skip cleanup prompt")
 
     args = parser.parse_args()
 
-    # Başlık
-    print_header("PDF → EPUB Dönüştürücü")
+    # Header
+    print_header("PDF → EPUB Converter")
 
-    # Adım 0: Kontroller
-    print_step(0, 5, "Sistem kontrolleri yapılıyor...")
+    # Step 0: System checks
+    print_step(0, 6, "Running system checks...")
     check_cuda()
     if not check_pandoc():
         sys.exit(1)
 
-    # PDF seç
+    # Select PDF
     if args.pdf:
         pdf_path = Path(args.pdf).resolve()
         if not pdf_path.exists():
-            print_error(f"PDF bulunamadı: {pdf_path}")
+            print_error(f"PDF not found: {pdf_path}")
             sys.exit(1)
     else:
         pdf_path = select_pdf_interactive()
 
-    # Metadata belirle
+    # Determine metadata
     if args.title:
         metadata = {
             "title": args.title,
-            "author": args.author or "Bilinmiyor",
+            "author": args.author or "Unknown",
             "publisher": args.publisher or "",
             "lang": args.lang,
         }
     else:
         metadata = get_metadata_interactive(pdf_path.name)
 
-    # Çıktı yollarını belirle
+    # Determine output paths
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     safe_title = "".join(c if c.isalnum() or c in " -_" else "" for c in metadata["title"]).strip()
-    epub_filename = f"{safe_title} - {metadata['author']}.epub" if metadata["author"] != "Bilinmiyor" else f"{safe_title}.epub"
+    epub_filename = f"{safe_title} - {metadata['author']}.epub" if metadata["author"] != "Unknown" else f"{safe_title}.epub"
 
     if args.output:
         epub_path = Path(args.output).resolve()
@@ -390,53 +389,53 @@ def main():
     images_dir = OUTPUT_DIR / f"{pdf_path.stem}_images"
     media_dir = OUTPUT_DIR / f"{pdf_path.stem}_media"
 
-    # Bilgi özeti
-    print(f"\n  PDF    : \033[97m{pdf_path.name}\033[0m ({pdf_path.stat().st_size / (1024*1024):.1f} MB)")
-    print(f"  EPUB   : \033[97m{epub_path.name}\033[0m")
-    print(f"  Başlık : {metadata['title']}")
-    print(f"  Yazar  : {metadata['author']}")
+    # Summary
+    print(f"\n  PDF       : \033[97m{pdf_path.name}\033[0m ({pdf_path.stat().st_size / (1024*1024):.1f} MB)")
+    print(f"  EPUB      : \033[97m{epub_path.name}\033[0m")
+    print(f"  Title     : {metadata['title']}")
+    print(f"  Author    : {metadata['author']}")
     if metadata.get("publisher"):
-        print(f"  Yayınevi: {metadata['publisher']}")
-    print(f"  OCR    : {args.ocr_size} | DPI: {args.dpi}")
+        print(f"  Publisher : {metadata['publisher']}")
+    print(f"  OCR       : {args.ocr_size} | DPI: {args.dpi}")
 
-    input("\n  Devam etmek için Enter'a basın (iptal: Ctrl+C)... ")
+    input("\n  Press Enter to start (Ctrl+C to cancel)... ")
 
-    # Adım 1: Modelleri indir
+    # Step 1: Download models
     print()
-    print_step(1, 5, "OCR modelleri indiriliyor/kontrol ediliyor...")
+    print_step(1, 6, "Checking/downloading OCR models...")
     step_download_models()
 
-    # Adım 2: PDF → Markdown
+    # Step 2: PDF → Markdown
     print()
-    print_step(2, 5, f"PDF → Markdown dönüşümü başlıyor...")
+    print_step(2, 6, "Converting PDF → Markdown...")
     step_convert_to_markdown(pdf_path, md_path, images_dir)
 
-    # Adım 3: Heceleme tirelerini düzelt
+    # Step 3: Fix hyphenation
     print()
-    print_step(3, 6, "Heceleme tireleri düzeltiliyor...")
+    print_step(3, 6, "Fixing hyphenation artifacts...")
     step_fix_hyphenation(md_path)
 
-    # Adım 4: Resimleri kopyala
+    # Step 4: Copy images
     print()
-    print_step(4, 6, "Resimler düzenleniyor...")
+    print_step(4, 6, "Organizing images...")
     step_copy_images(images_dir, media_dir)
 
-    # Adım 5: Markdown → EPUB
+    # Step 5: Markdown → EPUB
     print()
-    print_step(5, 6, "EPUB oluşturuluyor...")
+    print_step(5, 6, "Building EPUB...")
     step_create_epub(md_path, epub_path, media_dir, metadata)
 
-    # Adım 6: Temizlik
+    # Step 6: Cleanup
     print()
-    print_step(6, 6, "Temizlik...")
+    print_step(6, 6, "Cleanup...")
     if not args.no_cleanup:
         step_cleanup(md_path, images_dir, media_dir)
     else:
-        print_info("Temizlik atlandı (--no-cleanup).")
+        print_info("Cleanup skipped (--no-cleanup).")
 
-    # Sonuç
-    print_header("Dönüşüm Tamamlandı!")
-    print(f"  📖 EPUB dosyanız hazır:")
+    # Done
+    print_header("Conversion Complete!")
+    print(f"  📖 Your EPUB is ready:")
     print(f"  \033[97m{epub_path}\033[0m")
     print()
 

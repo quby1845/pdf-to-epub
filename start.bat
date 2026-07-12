@@ -2,54 +2,54 @@
 chcp 65001 >nul
 echo.
 echo ========================================
-echo   PDF-to-EPUB Hizli Baslat
+echo   PDF to EPUB Converter - Quick Start
 echo ========================================
 echo.
 
-:: Proje klasorune git
+:: Go to project folder
 cd /d "%~dp0"
 
-:: Sanal ortami aktif et
+:: Activate virtual environment
 if exist "venv\Scripts\activate.bat" (
     call venv\Scripts\activate.bat
-    echo [OK] Sanal ortam aktif edildi.
+    echo [OK] Virtual environment activated.
 ) else (
-    echo [HATA] Sanal ortam bulunamadi! Once setup.ps1 calistirin.
+    echo [ERROR] Virtual environment not found! Run setup.ps1 first.
     pause
     exit /b 1
 )
 
-:: Kontroller
+:: Check dependencies
 echo.
-echo Kontroller yapiliyor...
-python -c "import torch; print(f'  CUDA: {torch.cuda.is_available()} - {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"YOK\"}')" 2>nul
+echo Running checks...
+python -c "import torch; print(f'  CUDA: {torch.cuda.is_available()} - {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"NOT FOUND\"}')" 2>nul
 if errorlevel 1 (
-    echo [HATA] PyTorch kurulu degil!
+    echo [ERROR] PyTorch is not installed!
     pause
     exit /b 1
 )
 
 pandoc --version >nul 2>&1
 if errorlevel 1 (
-    echo [HATA] Pandoc kurulu degil!
+    echo [ERROR] Pandoc is not installed!
     pause
     exit /b 1
 )
 
 echo.
 echo ----------------------------------------
-echo PDF dosyanizi "input" klasorune koyun
-echo ve Enter'a basin.
+echo Place your PDF file in the "input" folder
+echo then press any key to continue.
 echo ----------------------------------------
 echo.
 
 if not exist "input" mkdir input
 
-:: PDF dosyalarini listele
-echo Mevcut PDF dosyalari:
+:: List available PDF files
+echo Available PDF files:
 dir /b input\*.pdf 2>nul
 if errorlevel 1 (
-    echo   [!] Hic PDF bulunamadi. Lutfen input/ klasorune PDF koyun.
+    echo   [!] No PDF files found. Please place a PDF in the input/ folder.
     explorer "%~dp0input"
     pause
     exit /b 1
@@ -57,7 +57,7 @@ if errorlevel 1 (
 
 echo.
 
-:: Donusumu baslat
+:: Start conversion
 python convert.py
 
 echo.
