@@ -66,7 +66,7 @@ python -c "from pdf_craft import predownload_models; predownload_models(models_c
 
 ### Method 1: Double-click (Easy)
 1. Drop your PDF into the `input/` folder
-2. Double-click `baslat.bat`
+2. Double-click `start.bat`
 3. Enter book details when prompted (title, author, etc.)
 4. Wait — EPUB will appear in the `output/` folder
 
@@ -116,7 +116,7 @@ python convert.py input/book.pdf --title "Book Title" --author "Author Name" --p
 pdf-to-epub/
 ├── convert.py      # Main conversion script
 ├── setup.ps1       # One-time setup script
-├── baslat.bat      # Double-click launcher
+├── start.bat      # Double-click launcher
 ├── style.css       # Premium EPUB stylesheet
 ├── input/          # Place your PDF files here
 ├── output/         # EPUB files are saved here
