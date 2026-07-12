@@ -1,60 +1,60 @@
-# PDF → EPUB Dönüştürücü 🇹🇷
+# PDF → EPUB Converter
 
-Taranmış PDF dosyalarını **%90-95 doğrulukla** EPUB formatına dönüştüren, tamamen yerel çalışan Python aracı.
+Convert scanned PDF files to EPUB format with **90-95% accuracy** using AI-powered OCR — runs entirely locally on your machine.
 
-Google Colab üzerinden yapılan [pdf-craft](https://github.com/oomol-lab/pdf-craft) tabanlı dönüşümün **Windows bilgisayarında yerel** olarak çalışan versiyonudur. Token harcamaz, API gerektirmez, ücretsizdir.
-
----
-
-## ✨ Özellikler
-
-- 🤖 **DeepSeek-OCR** ile AI destekli yüksek doğruluklu metin tanıma
-- 📐 **DocLayout-YOLO** ile sayfa düzeni analizi (header/footer otomatik temizlenir)
-- 🖼️ Görseller EPUB'a otomatik dahil edilir
-- ✂️ Satır sonu heceleme tireleri otomatik birleştirilir
-- 🎨 Premium `style.css` ile kitap kalitesinde EPUB dizgisi
-- 🚀 CUDA destekli GPU hızlandırması (NVIDIA)
-- 🇹🇷 Türkçe karakter desteği
+Based on the [pdf-craft](https://github.com/oomol-lab/pdf-craft) library. No API keys, no tokens, no monthly fees. Free forever.
 
 ---
 
-## 🖥️ Sistem Gereksinimleri
+## ✨ Features
 
-| Bileşen | Minimum |
-|---------|---------|
-| **İşletim Sistemi** | Windows 10/11 |
+- 🤖 **DeepSeek-OCR** for high-accuracy AI text recognition
+- 📐 **DocLayout-YOLO** for page layout analysis (headers/footers auto-removed)
+- 🖼️ Images automatically embedded in EPUB
+- ✂️ Line-end hyphenation automatically merged
+- 🎨 Premium `style.css` for book-quality EPUB typography
+- 🚀 CUDA GPU acceleration (NVIDIA)
+- 🇹🇷 Full Turkish character support
+
+---
+
+## 🖥️ System Requirements
+
+| Component | Minimum |
+|-----------|---------|
+| **OS** | Windows 10/11 |
 | **GPU** | NVIDIA (min. 8GB VRAM) |
 | **Python** | 3.10+ |
-| **RAM** | 16GB önerilir |
-| **Disk** | ~10GB boş alan (modeller için) |
+| **RAM** | 16GB recommended |
+| **Disk** | ~10GB free (for AI models) |
 
-> ⚠️ AMD ekran kartı ve sadece CPU ile çalışmaz. NVIDIA zorunludur.
+> ⚠️ AMD GPU and CPU-only systems are not supported. NVIDIA GPU is required.
 
 ---
 
-## 🚀 Kurulum
+## 🚀 Installation
 
-### 1. Depoyu klonla
+### 1. Clone the repository
 ```bash
-git clone https://github.com/KULLANICI_ADIN/pdf-to-epub.git
+git clone https://github.com/quby1845/pdf-to-epub.git
 cd pdf-to-epub
 ```
 
-### 2. Kurulum scriptini çalıştır (tek seferlik)
-PowerShell'i **Yönetici olarak** aç:
+### 2. Run the setup script (one-time)
+Open PowerShell **as Administrator**:
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
 ```
 
-Bu script otomatik olarak şunları kurar:
-- Python sanal ortamı (venv)
-- PyTorch + CUDA desteği (~2.5 GB)
-- pdf-craft kütüphanesi
-- Pandoc (winget ile)
-- Poppler (winget ile)
+This script automatically installs:
+- Python virtual environment (venv)
+- PyTorch + CUDA support (~2.5 GB download)
+- pdf-craft library
+- Pandoc (via winget)
+- Poppler (via winget)
 
-### 3. AI modellerini indir (ilk seferde otomatik yapılır)
+### 3. Download AI models (automatic on first run)
 ```powershell
 .\venv\Scripts\Activate.ps1
 python -c "from pdf_craft import predownload_models; predownload_models(models_cache_path='models')"
@@ -62,97 +62,97 @@ python -c "from pdf_craft import predownload_models; predownload_models(models_c
 
 ---
 
-## 📖 Kullanım
+## 📖 Usage
 
-### Yöntem 1: Çift Tıkla (Kolay)
-1. PDF dosyasını `input/` klasörüne koy
-2. `baslat.bat` dosyasına çift tıkla
-3. Soruları yanıtla (kitap adı, yazar vb.)
-4. Bekle — EPUB `output/` klasöründe oluşacak
+### Method 1: Double-click (Easy)
+1. Drop your PDF into the `input/` folder
+2. Double-click `baslat.bat`
+3. Enter book details when prompted (title, author, etc.)
+4. Wait — EPUB will appear in the `output/` folder
 
-### Yöntem 2: Terminal
+### Method 2: Terminal
 ```powershell
 .\venv\Scripts\Activate.ps1
 
-# İnteraktif mod
+# Interactive mode
 python convert.py
 
-# Tek satırda
-python convert.py input/kitap.pdf --title "Kitap Adı" --author "Yazar" --publisher "Yayınevi"
+# One-liner
+python convert.py input/book.pdf --title "Book Title" --author "Author Name" --publisher "Publisher"
 ```
 
 ---
 
-## ⚙️ Parametreler
+## ⚙️ Parameters
 
-| Parametre | Varsayılan | Açıklama |
-|-----------|-----------|----------|
-| `--title` | PDF adı | Kitap başlığı |
-| `--author` | Bilinmiyor | Yazar adı |
-| `--publisher` | (boş) | Yayınevi |
-| `--lang` | `tr` | Dil kodu |
-| `--ocr-size` | `gundam` | OCR kalitesi: `tiny` `small` `base` `large` `gundam` |
-| `--dpi` | `300` | Tarama çözünürlüğü |
-| `-o` | otomatik | Çıktı EPUB yolu |
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `--title` | PDF filename | Book title |
+| `--author` | Unknown | Author name |
+| `--publisher` | (empty) | Publisher name |
+| `--lang` | `tr` | Language code |
+| `--ocr-size` | `gundam` | OCR quality: `tiny` `small` `base` `large` `gundam` |
+| `--dpi` | `300` | Scan resolution |
+| `-o` | auto | Output EPUB path |
 
-> **OCR boyutu:** `gundam` en yüksek kalitedir ve 8GB VRAM ile çalışır. Daha hızlı işlem için `large` veya `base` kullanılabilir.
-
----
-
-## ⏱️ Performans
-
-| GPU | Sayfa Başına Süre |
-|-----|-----------------|
-| RTX 4060 Ti 8GB | ~40-45 sn |
-| RTX 4070 Ti 12GB | ~20-25 sn |
-| RTX 4090 24GB | ~10-12 sn |
-| Google Colab L4 | ~25-30 sn |
+> **OCR size:** `gundam` is the highest quality and works with 8GB VRAM. Use `large` or `base` for faster processing.
 
 ---
 
-## 📁 Proje Yapısı
+## ⏱️ Performance
+
+| GPU | Time per Page |
+|-----|--------------|
+| RTX 4060 Ti 8GB | ~40-45 sec |
+| RTX 4070 Ti 12GB | ~20-25 sec |
+| RTX 4090 24GB | ~10-12 sec |
+| Google Colab L4 | ~25-30 sec |
+
+---
+
+## 📁 Project Structure
 
 ```
 pdf-to-epub/
-├── convert.py      # Ana dönüşüm scripti
-├── setup.ps1       # Tek seferlik kurulum
-├── baslat.bat      # Çift tıkla başlat
-├── style.css       # Premium EPUB stil şablonu
-├── input/          # PDF dosyalarını buraya koy
-├── output/         # EPUB çıktıları burada oluşur
-├── models/         # AI model önbelleği (git'e dahil değil)
-└── venv/           # Python sanal ortamı (git'e dahil değil)
+├── convert.py      # Main conversion script
+├── setup.ps1       # One-time setup script
+├── baslat.bat      # Double-click launcher
+├── style.css       # Premium EPUB stylesheet
+├── input/          # Place your PDF files here
+├── output/         # EPUB files are saved here
+├── models/         # AI model cache (not in git)
+└── venv/           # Python virtual environment (not in git)
 ```
 
 ---
 
-## ⚠️ Bilinen Sınırlamalar
+## ⚠️ Known Limitations
 
-- Düşük kaliteli taranmış PDF'lerde OCR hataları olabilir
-- Çok karmaşık tablo yapıları tam doğrulukla dönüştürülemeyebilir
-- Arapça/Osmanlıca gibi sağdan sola dillerde sorunlar yaşanabilir
-
----
-
-## 🔧 Sorun Giderme
-
-| Sorun | Çözüm |
-|-------|-------|
-| `CUDA out of memory` | `--ocr-size large` kullan, tarayıcıyı kapat |
-| `pandoc not found` | Terminal'i yeniden başlat |
-| `poppler not found` | Terminal'i yeniden başlat |
+- Low-quality scanned PDFs may produce OCR errors
+- Complex table layouts may not convert perfectly
+- Right-to-left languages (Arabic, Ottoman Turkish) may have issues
 
 ---
 
-## 🙏 Kullanılan Kütüphaneler
+## 🔧 Troubleshooting
 
-- [pdf-craft](https://github.com/oomol-lab/pdf-craft) — PDF → Markdown dönüşümü
-- [DeepSeek-OCR](https://huggingface.co/deepseek-ai/DeepSeek-OCR) — OCR modeli
-- [Pandoc](https://pandoc.org/) — Markdown → EPUB dönüşümü
-- [Poppler](https://poppler.freedesktop.org/) — PDF işleme
+| Issue | Solution |
+|-------|----------|
+| `CUDA out of memory` | Use `--ocr-size large`, close your browser |
+| `pandoc not found` | Restart terminal |
+| `poppler not found` | Restart terminal |
 
 ---
 
-## 📄 Lisans
+## 🙏 Credits
+
+- [pdf-craft](https://github.com/oomol-lab/pdf-craft) — PDF to Markdown conversion
+- [DeepSeek-OCR](https://huggingface.co/deepseek-ai/DeepSeek-OCR) — OCR model
+- [Pandoc](https://pandoc.org/) — Markdown to EPUB conversion
+- [Poppler](https://poppler.freedesktop.org/) — PDF processing
+
+---
+
+## 📄 License
 
 MIT License
