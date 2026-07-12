@@ -1,0 +1,78 @@
+/* ============================================================
+   PREMIUM EPUB STIL SABLONU
+   E-Kitap Okuyucular (Kindle, Kobo) ve Telefonlar Icin Ozel
+   ============================================================ */
+
+/* Genel Sayfa ve Yazi Karakteri */
+body {
+    font-family: "Bookerly", "Literata", "Georgia", "Palatino", serif;
+    line-height: 1.6;
+    text-align: justify;
+    margin: 0 5%;
+    color: #111111;
+}
+
+/* Paragraf Duzenlemeleri (Gercek Kitap Formatı) */
+p {
+    margin: 0;
+    text-indent: 1.5em; /* Paragraf basi boslugu */
+    margin-bottom: 0;
+}
+
+/* Bir basliktan veya gorselden sonraki ilk paragrafin girintisi olmaz */
+h1 + p, h2 + p, h3 + p, img + p, div + p {
+    text-indent: 0;
+}
+
+/* Basliklar */
+h1, h2, h3, h4 {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    color: #222222;
+    text-align: center;
+    font-weight: bold;
+    page-break-before: always; /* Her bolum yeni sayfada baslar */
+}
+
+h1 {
+    font-size: 1.8em;
+    margin-top: 2em;
+    margin-bottom: 1em;
+}
+
+h2 {
+    font-size: 1.4em;
+    margin-top: 1.5em;
+    margin-bottom: 0.8em;
+}
+
+/* Diyaloglar ve Alintilar */
+blockquote {
+    font-style: italic;
+    margin: 1.5em 10%;
+    line-height: 1.5;
+    text-align: justify;
+}
+
+/* Gorseller */
+img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 1.5em auto;
+    border-radius: 4px;
+}
+
+/* Sayfa Bolumleyici (Yildizlar vs.) */
+hr {
+    border: none;
+    text-align: center;
+    height: 30px;
+    margin: 2em 0;
+}
+
+hr::after {
+    content: "* * *";
+    font-size: 1.2em;
+    color: #777777;
+    letter-spacing: 0.5em;
+}

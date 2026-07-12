@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+.Python
+
+# Sanal ortam
+venv/
+env/
+.venv/
+
+# AI Modelleri (çok büyük, git'e dahil etme)
+models/
+
+# Kullanıcı dosyaları
+input/
+output/
+temp/
+
+# Ollama post-processor (ayrı proje)
+polish.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Log dosyaları
+*.log
