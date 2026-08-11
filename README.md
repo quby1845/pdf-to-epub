@@ -70,89 +70,97 @@ python -m pip install -e .
 Install Pandoc and Poppler with your operating system's package manager. The first conversion
 downloads OCR models to the user cache unless `--models-dir` is supplied.
 
-The planned PyPI distributioï^<¶‰žËkºwµç`  f"--resource-path={markdown_path.parent}",
-        f"--metadata=title:{metadata.title}",
-        f"--metadata=author:{metadata.author}",
-        f"--metadata=lang:{metadata.language}",
-    ]
-    if metadata.publisher:
-        command.append(f"--metadata=publisher:{metadata.publisher}")
-    if css_path is not None:
-        command.append(f"--css={css_path}")
-    return command
+The planned PyPI distribution name is `pdf-to-epub-ocr`; it was available when the release
+metadata was prepared. Installation from PyPI will be documented after the first release.
 
+## Usage
 
-def create_epub(
-    markdown_path: Path,
-    epub_path: Path,
-    metadata: BookMetadata,
-    css_path: Path | None,
-) -> None:
-    command = _pandoc_command(markdown_path, epub_path, metadata, css_path)
-    try:
-        result = subprocess.run(command, capture_output=True, text=True, check=False)
-    except OSError as error:
-        raise ConversionError(f"Pandoc could not be started: {error}") from error
-    if result.returncode != 0:
-        detail = result.stderr.strip() or "unknown Pandoc error"
-        raise ConversionError(f"Pandoc failed: {detail}")
-    if not epub_path.is_file():
-        raise ConversionError("Pandoc reported success but did not create an EPUB file.")
+Place a PDF in `input/` and double-click `start.bat`, or use the CLI:
 
+```bash
+# Installed command
+pdf-to-epub-ocr input/book.pdf --title "Book Title" --author "Author Name"
 
-def convert_pdf(
-    options: ConversionOptions,
-    progress: Callable[[str], None] | None = None,
-) -> ConversionResult:
-    """Run pdf-craft OCR, repair Markdown, and package the result as EPUB."""
-    validate_options(options)
-    report = progress or (lambda _message: None)
-    options.epub_path.parent.mkdir(parents=True, exist_ok=True)
-    options.models_dir.mkdir(parents=True, exist_ok=True)
-    if options.work_parent is not None:
-        options.work_parent.mkdir(parents=True, exist_ok=True)
+# Equivalent command from a repository checkout
+python convert.py input/book.pdf --title "Book Title" --author "Author Name"
+```
 
-    work_dir = Path(
-        tempfile.mkdtemp(
-            prefix=f"{sanitize_filename(options.pdf_path.stem)}-",
-            dir=options.work_parent,
-        )
-    )
-    markdown_path = work_dir / "book.md"
-    assets_path = work_dir / "assets"
-    start = time.monotonic()
+When an input file is passed, the command is non-interactive. Without an input path it lists
+PDF files in `input/` and prompts for book metadata.
 
-    try:
-        report("Checking and downloading OCR models")
-        from pdf_craft import predownload_models, transform_markdown
+Common options:
 
-        predownload_models(models_cache_path=str(options.models_dir))
-        report("Converting PDF to Markdown with OCR")
-        transform_markdown(
-            pdf_path=str(options.pdf_path),
-            markdown_path=str(markdown_path),
-            markdown_assets_path=str(assets_path),
-            analysing_path=str(work_dir / "analysis"),
-            ocr_size=options.ocr_size,
-            models_cache_path=str(options.models_dir),
-            dpi=options.dpi,
-        )
+```text
+-o, --output PATH           Explicit EPUB output path
+--title TEXT                Book title (defaults to the PDF filename)
+--author TEXT               Author (defaults to Unknown)
+--publisher TEXT            Publisher metadata
+--lang TAG                  EPUB language tag (defaults to en)
+--ocr-size SIZE             tiny, small, base, large, or gundam
+--dpi NUMBER                Render DPI, from 72 to 600 (defaults to 300)
+--css PATH                  Custom EPUB stylesheet
+--no-css                    Do not embed a stylesheet
+--models-dir PATH           OCR model cache directory
+--work-dir PATH             Parent directory for intermediate files
+--keep-intermediates        Retain Markdown and extracted assets
+--overwrite                 Replace an existing EPUB
+```
 
-        report("Repairing line-end hyphenation")
-        fixes = fix_hyphenation_file(markdown_path)
-        report("Building EPUB with Pandoc")
-        create_epub(markdown_path, options.epub_path, options.metadata, options.css_path)
-        return ConversionResult(
-            epub_path=options.epub_path,
-            work_dir=work_dir,
-            elapsed_seconds=time.monotonic() - start,
-            hyphenation_fixes=fixes,
-            intermediates_kept=options.keep_intermediates,
-        )
-    except ConversionError:
-        raise
-    except Exception as error:
-        raise ConversionError(f"Conversion failed: {error}") from error
-    finally:
-        if not options.keep_intermediates:
-            shutil.rmtree(work_dir, ignore_errors=True)
+Run `pdf-to-epub-ocr --help` for the complete interface.
+
+## Output and privacy
+
+- The final EPUB is written to `output/` unless `-o` is used.
+- Intermediate files are removed after a successful conversion by default.
+- `--keep-intermediates` preserves the Markdown and extracted assets for inspection.
+- Model weights are downloaded by pdf-craft/Hugging Face on first use; the PDF itself remains
+  local. Review upstream dependency policies if your environment has strict network controls.
+
+## Known limitations
+
+- OCR quality depends on scan resolution, language, typography, and page complexity.
+- Complex tables, formulas, marginalia, and right-to-left text may require manual correction.
+- Exact PDF pagination and visual layout cannot be preserved in a reflowable EPUB.
+- The automated test suite validates orchestration and text processing without downloading
+  models or performing GPU OCR. Maintainers manually validate representative conversion output.
+
+## Troubleshooting
+
+| Symptom | Suggested action |
+| --- | --- |
+| `PyTorch is not installed` | Install the CUDA build selected for your driver and Python version. |
+| `CUDA is not available` | Check the NVIDIA driver and PyTorch CUDA build. CPU runs are not supported. |
+| `Pandoc was not found` | Install Pandoc, then open a new terminal so `PATH` is refreshed. |
+| Poppler/PDF rendering error | Install Poppler and ensure its `bin` directory is on `PATH`. |
+| CUDA out of memory | Retry with `--ocr-size large` or `--ocr-size base` and close GPU-heavy apps. |
+| Existing output error | Choose another `-o` path or pass `--overwrite`. |
+
+When reporting a bug, do not upload copyrighted or confidential PDFs. Provide a minimal public
+sample or a description of the document characteristics whenever possible.
+
+## Development and maintenance
+
+```bash
+python -m pip install -e ".[dev]"
+ruff check .
+ruff format --check .
+pytest
+python -m build
+python -m twine check dist/*
+```
+
+The project uses semantic versioning, a Keep a Changelog-style changelog, automated tests on
+Python 3.11â€“3.13, and a tag-driven release workflow with PyPI Trusted Publishing preparation.
+See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md),
+[CHANGELOG.md](CHANGELOG.md), and [MAINTAINERS.md](MAINTAINERS.md).
+
+## Credits
+
+- [pdf-craft](https://github.com/oomol-lab/pdf-craft) â€” OCR and document transformation
+- [DeepSeek OCR](https://github.com/deepseek-ai/DeepSeek-OCR) â€” document recognition model
+- [Pandoc](https://pandoc.org/) â€” EPUB generation
+- [Poppler](https://poppler.freedesktop.org/) â€” PDF rendering dependency
+
+## License
+
+Licensed under the [MIT License](LICENSE). Third-party dependencies retain their own licenses.
