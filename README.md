@@ -1,158 +1,158 @@
-# PDF → EPUB Converter
+# PDF to EPUB OCR
 
-Convert scanned PDF files to EPUB format with **90-95% accuracy** using AI-powered OCR — runs entirely locally on your machine.
+[![CI](https://github.com/quby1845/pdf-to-epub/actions/workflows/ci.yml/badge.svg)](https://github.com/quby1845/pdf-to-epub/actions/workflows/ci.yml)
+[![Python 3.11–3.13](https://img.shields.io/badge/python-3.11--3.13-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-Based on the [pdf-craft](https://github.com/oomol-lab/pdf-craft) library. No API keys, no tokens, no monthly fees. Free forever.
+Convert scanned PDF books into reflowable EPUB files with local, GPU-accelerated OCR.
+The project combines [pdf-craft](https://github.com/oomol-lab/pdf-craft) for document
+recognition with [Pandoc](https://pandoc.org/) for EPUB generation. Source documents are
+processed on your machine; no document text is sent to an external API.
 
----
+> [!IMPORTANT]
+> This project is in alpha. Keep the original PDF and review generated EPUBs before relying
+> on them. OCR output is never guaranteed to be an exact transcription.
 
-## ✨ Features
+## Why this project
 
-- 🤖 **DeepSeek-OCR** for high-accuracy AI text recognition
-- 📐 **DocLayout-YOLO** for page layout analysis (headers/footers auto-removed)
-- 🖼️ Images automatically embedded in EPUB
-- ✂️ Line-end hyphenation automatically merged
-- 🎨 Premium `style.css` for book-quality EPUB typography
-- 🚀 CUDA GPU acceleration (NVIDIA)
-- 🇹🇷 Full Turkish character support
+PDF pages have a fixed layout, while EPUB content adapts to an e-reader's screen and font
+settings. PDF to EPUB OCR provides a reproducible command-line workflow for scanned books:
 
----
+- local DeepSeek OCR through pdf-craft;
+- document layout and reading-order detection;
+- image preservation and a generated table of contents;
+- repair of common line-end hyphenation artifacts;
+- configurable language, metadata, OCR model, DPI, and stylesheet;
+- a non-interactive CLI suitable for repeatable conversions.
 
-## 🖥️ System Requirements
+## Requirements
 
-| Component | Minimum |
-|-----------|---------|
-| **OS** | Windows 10/11 |
-| **GPU** | NVIDIA (min. 8GB VRAM) |
-| **Python** | 3.10+ |
-| **RAM** | 16GB recommended |
-| **Disk** | ~10GB free (for AI models) |
+| Component | Supported / recommended |
+| --- | --- |
+| Operating system | Windows 10/11; Linux is community-supported |
+| Python | 3.11, 3.12, or 3.13 |
+| GPU | NVIDIA CUDA GPU; 8 GB VRAM recommended for `gundam` |
+| Memory | 16 GB RAM recommended |
+| Disk | At least 10 GB free for Python packages and model files |
+| System tools | Pandoc and Poppler |
 
-> ⚠️ AMD GPU and CPU-only systems are not supported. NVIDIA GPU is required.
+CPU execution may be technically possible in parts of the dependency stack, but it is not a
+supported conversion path and can be impractically slow.
 
----
+## Installation
 
-## 🚀 Installation
+### Windows quick setup
 
-### 1. Clone the repository
-```bash
+Clone the repository and run the included PowerShell setup:
+
+```powershell
 git clone https://github.com/quby1845/pdf-to-epub.git
 cd pdf-to-epub
-```
-
-### 2. Run the setup script (one-time)
-Open PowerShell **as Administrator**:
-```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
 ```
 
-This script automatically installs:
-- Python virtual environment (venv)
-- PyTorch + CUDA support (~2.5 GB download)
-- pdf-craft library
-- Pandoc (via winget)
-- Poppler (via winget)
+The script creates `.venv`, installs a CUDA-enabled PyTorch build and the Python package,
+checks Pandoc and Poppler, and creates `input/` and `output/` directories.
 
-### 3. Download AI models (automatic on first run)
-```powershell
-.\venv\Scripts\Activate.ps1
-python -c "from pdf_craft import predownload_models; predownload_models(models_cache_path='models')"
+### Manual setup
+
+Install a CUDA-compatible PyTorch build using the
+[official PyTorch selector](https://pytorch.org/get-started/locally/), then install this project:
+
+```bash
+python -m venv .venv
+# Activate .venv for your shell, then install the project:
+python -m pip install --upgrade pip
+python -m pip install -e .
 ```
 
----
+Install Pandoc and Poppler with your operating system's package manager. The first conversion
+downloads OCR models to the user cache unless `--models-dir` is supplied.
 
-## 📖 Usage
+The planned PyPI distributio�^<����k�w��`  f"--resource-path={markdown_path.parent}",
+        f"--metadata=title:{metadata.title}",
+        f"--metadata=author:{metadata.author}",
+        f"--metadata=lang:{metadata.language}",
+    ]
+    if metadata.publisher:
+        command.append(f"--metadata=publisher:{metadata.publisher}")
+    if css_path is not None:
+        command.append(f"--css={css_path}")
+    return command
 
-### Method 1: Double-click (Easy)
-1. Drop your PDF into the `input/` folder
-2. Double-click `start.bat`
-3. Enter book details when prompted (title, author, etc.)
-4. Wait — EPUB will appear in the `output/` folder
 
-### Method 2: Terminal
-```powershell
-.\venv\Scripts\Activate.ps1
+def create_epub(
+    markdown_path: Path,
+    epub_path: Path,
+    metadata: BookMetadata,
+    css_path: Path | None,
+) -> None:
+    command = _pandoc_command(markdown_path, epub_path, metadata, css_path)
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=False)
+    except OSError as error:
+        raise ConversionError(f"Pandoc could not be started: {error}") from error
+    if result.returncode != 0:
+        detail = result.stderr.strip() or "unknown Pandoc error"
+        raise ConversionError(f"Pandoc failed: {detail}")
+    if not epub_path.is_file():
+        raise ConversionError("Pandoc reported success but did not create an EPUB file.")
 
-# Interactive mode
-python convert.py
 
-# One-liner
-python convert.py input/book.pdf --title "Book Title" --author "Author Name" --publisher "Publisher"
-```
+def convert_pdf(
+    options: ConversionOptions,
+    progress: Callable[[str], None] | None = None,
+) -> ConversionResult:
+    """Run pdf-craft OCR, repair Markdown, and package the result as EPUB."""
+    validate_options(options)
+    report = progress or (lambda _message: None)
+    options.epub_path.parent.mkdir(parents=True, exist_ok=True)
+    options.models_dir.mkdir(parents=True, exist_ok=True)
+    if options.work_parent is not None:
+        options.work_parent.mkdir(parents=True, exist_ok=True)
 
----
+    work_dir = Path(
+        tempfile.mkdtemp(
+            prefix=f"{sanitize_filename(options.pdf_path.stem)}-",
+            dir=options.work_parent,
+        )
+    )
+    markdown_path = work_dir / "book.md"
+    assets_path = work_dir / "assets"
+    start = time.monotonic()
 
-## ⚙️ Parameters
+    try:
+        report("Checking and downloading OCR models")
+        from pdf_craft import predownload_models, transform_markdown
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `--title` | PDF filename | Book title |
-| `--author` | Unknown | Author name |
-| `--publisher` | (empty) | Publisher name |
-| `--lang` | `tr` | Language code |
-| `--ocr-size` | `gundam` | OCR quality: `tiny` `small` `base` `large` `gundam` |
-| `--dpi` | `300` | Scan resolution |
-| `-o` | auto | Output EPUB path |
+        predownload_models(models_cache_path=str(options.models_dir))
+        report("Converting PDF to Markdown with OCR")
+        transform_markdown(
+            pdf_path=str(options.pdf_path),
+            markdown_path=str(markdown_path),
+            markdown_assets_path=str(assets_path),
+            analysing_path=str(work_dir / "analysis"),
+            ocr_size=options.ocr_size,
+            models_cache_path=str(options.models_dir),
+            dpi=options.dpi,
+        )
 
-> **OCR size:** `gundam` is the highest quality and works with 8GB VRAM. Use `large` or `base` for faster processing.
-
----
-
-## ⏱️ Performance
-
-| GPU | Time per Page |
-|-----|--------------|
-| RTX 4060 Ti 8GB | ~40-45 sec |
-| RTX 4070 Ti 12GB | ~20-25 sec |
-| RTX 4090 24GB | ~10-12 sec |
-| Google Colab L4 | ~25-30 sec |
-
----
-
-## 📁 Project Structure
-
-```
-pdf-to-epub/
-├── convert.py      # Main conversion script
-├── setup.ps1       # One-time setup script
-├── start.bat      # Double-click launcher
-├── style.css       # Premium EPUB stylesheet
-├── input/          # Place your PDF files here
-├── output/         # EPUB files are saved here
-├── models/         # AI model cache (not in git)
-└── venv/           # Python virtual environment (not in git)
-```
-
----
-
-## ⚠️ Known Limitations
-
-- Low-quality scanned PDFs may produce OCR errors
-- Complex table layouts may not convert perfectly
-- Right-to-left languages (Arabic, Ottoman Turkish) may have issues
-
----
-
-## 🔧 Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| `CUDA out of memory` | Use `--ocr-size large`, close your browser |
-| `pandoc not found` | Restart terminal |
-| `poppler not found` | Restart terminal |
-
----
-
-## 🙏 Credits
-
-- [pdf-craft](https://github.com/oomol-lab/pdf-craft) — PDF to Markdown conversion
-- [DeepSeek-OCR](https://huggingface.co/deepseek-ai/DeepSeek-OCR) — OCR model
-- [Pandoc](https://pandoc.org/) — Markdown to EPUB conversion
-- [Poppler](https://poppler.freedesktop.org/) — PDF processing
-
----
-
-## 📄 License
-
-MIT License
+        report("Repairing line-end hyphenation")
+        fixes = fix_hyphenation_file(markdown_path)
+        report("Building EPUB with Pandoc")
+        create_epub(markdown_path, options.epub_path, options.metadata, options.css_path)
+        return ConversionResult(
+            epub_path=options.epub_path,
+            work_dir=work_dir,
+            elapsed_seconds=time.monotonic() - start,
+            hyphenation_fixes=fixes,
+            intermediates_kept=options.keep_intermediates,
+        )
+    except ConversionError:
+        raise
+    except Exception as error:
+        raise ConversionError(f"Conversion failed: {error}") from error
+    finally:
+        if not options.keep_intermediates:
+            shutil.rmtree(work_dir, ignore_errors=True)

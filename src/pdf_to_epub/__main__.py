@@ -1,5 +1,3 @@
-"""Backward-compatible entry point for running the project from a checkout."""
-
 from pdf_to_epub.cli import main
 
 if __name__ == "__main__":

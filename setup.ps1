@@ -1,140 +1,65 @@
-# ============================================================
-# PDF-to-EPUB Setup Script (Windows)
-# Requires: NVIDIA GPU (8GB+ VRAM), Python 3.10+, winget
-# ============================================================
+# PDF to EPUB OCR setup for Windows.
+# Requires Python 3.11-3.13, winget, and an NVIDIA GPU for supported conversions.
+
+$ErrorActionPreference = "Stop"
+$venvPath = Join-Path $PSScriptRoot ".venv"
+$pythonPath = Join-Path $venvPath "Scripts\python.exe"
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  PDF-to-EPUB Setup" -ForegroundColor Cyan
+Write-Host "  PDF to EPUB OCR - Setup" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
 
-# -----------------------------------------------------------
-# 1. Create virtual environment
-# -----------------------------------------------------------
-$venvPath = "$PSScriptRoot\venv"
+$pythonVersion = python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+if ($LASTEXITCODE -ne 0 -or $pythonVersion -notin @("3.11", "3.12", "3.13")) {
+    Write-Host "Python 3.11, 3.12, or 3.13 is required (found: $pythonVersion)." -ForegroundColor Red
+    exit 1
+}
 
-if (Test-Path $venvPath) {
-    Write-Host "[!] Virtual environment already exists: $venvPath" -ForegroundColor Yellow
-} else {
-    Write-Host "[1/5] Creating virtual environment..." -ForegroundColor Green
+if (-not (Test-Path $venvPath)) {
+    Write-Host "[1/5] Creating .venv..." -ForegroundColor Green
     python -m venv $venvPath
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Failed to create virtual environment!" -ForegroundColor Red
-        exit 1
-    }
-    Write-Host "  -> Virtual environment created." -ForegroundColor Green
+} else {
+    Write-Host "[1/5] Reusing .venv." -ForegroundColor Yellow
 }
 
-# Activate virtual environment
-$activateScript = "$venvPath\Scripts\Activate.ps1"
-if (Test-Path $activateScript) {
-    & $activateScript
-    Write-Host "  -> Virtual environment activated." -ForegroundColor Green
-} else {
-    Write-Host "ERROR: Activate.ps1 not found!" -ForegroundColor Red
+Write-Host "[2/5] Updating packaging tools..." -ForegroundColor Green
+& $pythonPath -m pip install --upgrade pip
+
+Write-Host "[3/5] Installing CUDA-enabled PyTorch..." -ForegroundColor Green
+& $pythonPath -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu126
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "CUDA 12.6 wheels failed; trying CUDA 13.0 wheels..." -ForegroundColor Yellow
+    & $pythonPath -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130
+}
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "PyTorch installation failed. Use the selector at https://pytorch.org/get-started/locally/." -ForegroundColor Red
     exit 1
 }
 
-# -----------------------------------------------------------
-# 2. Install PyTorch + CUDA
-# -----------------------------------------------------------
-Write-Host ""
-Write-Host "[2/5] Installing PyTorch + CUDA..." -ForegroundColor Green
-Write-Host "  (This may take a few minutes - ~2.5 GB download)" -ForegroundColor DarkGray
-
-# CUDA 12.6 stable build (most reliable Windows support)
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu126
-
+Write-Host "[4/5] Installing PDF to EPUB OCR and Python dependencies..." -ForegroundColor Green
+& $pythonPath -m pip install --editable $PSScriptRoot
 if ($LASTEXITCODE -ne 0) {
-    Write-Host ""
-    Write-Host "WARNING: cu126 install failed. Trying cu132..." -ForegroundColor Yellow
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu132
-}
-
-# Verify CUDA
-Write-Host ""
-Write-Host "  Verifying CUDA..." -ForegroundColor DarkGray
-python -c "import torch; cuda_ok = torch.cuda.is_available(); print(f'  CUDA available: {cuda_ok}'); print(f'  GPU: {torch.cuda.get_device_name(0)}' if cuda_ok else '  WARNING: CUDA not found!')"
-
-# -----------------------------------------------------------
-# 3. Install pdf-craft
-# -----------------------------------------------------------
-Write-Host ""
-Write-Host "[3/5] Installing pdf-craft..." -ForegroundColor Green
-pip install pdf-craft
-
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "ERROR: Failed to install pdf-craft!" -ForegroundColor Red
+    Write-Host "Project installation failed." -ForegroundColor Red
     exit 1
 }
-Write-Host "  -> pdf-craft installed." -ForegroundColor Green
 
-# -----------------------------------------------------------
-# 4. Install Pandoc (via winget)
-# -----------------------------------------------------------
-Write-Host ""
-Write-Host "[4/5] Checking Pandoc..." -ForegroundColor Green
-
-$pandocCheck = Get-Command pandoc -ErrorAction SilentlyContinue
-if ($pandocCheck) {
-    Write-Host "  -> Pandoc already installed: $(pandoc --version | Select-Object -First 1)" -ForegroundColor Green
-} else {
-    Write-Host "  Installing Pandoc via winget..." -ForegroundColor DarkGray
+Write-Host "[5/5] Checking system tools..." -ForegroundColor Green
+if (-not (Get-Command pandoc -ErrorAction SilentlyContinue)) {
     winget install --exact --id JohnMacFarlane.Pandoc --accept-source-agreements --accept-package-agreements
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Pandoc installation failed! Install manually:" -ForegroundColor Red
-        Write-Host "  https://pandoc.org/installing.html" -ForegroundColor Yellow
-    } else {
-        Write-Host "  -> Pandoc installed. Restart your terminal to update PATH." -ForegroundColor Green
-    }
 }
-
-# -----------------------------------------------------------
-# 5. Install Poppler (via winget)
-# -----------------------------------------------------------
-Write-Host ""
-Write-Host "[5/5] Checking Poppler..." -ForegroundColor Green
-
-$popplerCheck = Get-Command pdftoppm -ErrorAction SilentlyContinue
-if ($popplerCheck) {
-    Write-Host "  -> Poppler already installed." -ForegroundColor Green
-} else {
-    Write-Host "  Installing Poppler via winget..." -ForegroundColor DarkGray
+if (-not (Get-Command pdftoppm -ErrorAction SilentlyContinue)) {
     winget install --exact --id oschwartz10612.Poppler --accept-source-agreements --accept-package-agreements
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "ERROR: Poppler installation failed! Install manually:" -ForegroundColor Red
-        Write-Host "  https://github.com/oschwartz10612/poppler-windows/releases" -ForegroundColor Yellow
-        Write-Host "  After extracting, add the bin/ folder to your system PATH." -ForegroundColor Yellow
-    } else {
-        Write-Host "  -> Poppler installed. Restart your terminal to update PATH." -ForegroundColor Green
+}
+
+foreach ($directory in @("input", "output")) {
+    $path = Join-Path $PSScriptRoot $directory
+    if (-not (Test-Path $path)) {
+        New-Item -ItemType Directory -Path $path | Out-Null
     }
 }
 
-# -----------------------------------------------------------
-# Create project directories
-# -----------------------------------------------------------
-$dirs = @("input", "output", "models", "temp")
-foreach ($dir in $dirs) {
-    $fullPath = "$PSScriptRoot\$dir"
-    if (-not (Test-Path $fullPath)) {
-        New-Item -ItemType Directory -Path $fullPath | Out-Null
-    }
-}
+& $pythonPath -c "import torch; print(f'PyTorch {torch.__version__}; CUDA available: {torch.cuda.is_available()}')"
 
-# -----------------------------------------------------------
-# Summary
-# -----------------------------------------------------------
 Write-Host ""
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  Setup Complete!" -ForegroundColor Cyan
-Write-Host "========================================" -ForegroundColor Cyan
-Write-Host ""
-Write-Host "Next steps:" -ForegroundColor White
-Write-Host "  1. CLOSE this terminal and open a NEW one (to update PATH)" -ForegroundColor Yellow
-Write-Host "  2. Place your PDF file in the 'input' folder" -ForegroundColor White
-Write-Host "  3. Run the converter:" -ForegroundColor White
-Write-Host "     cd $PSScriptRoot" -ForegroundColor DarkGray
-Write-Host "     .\venv\Scripts\Activate.ps1" -ForegroundColor DarkGray
-Write-Host "     python convert.py" -ForegroundColor DarkGray
-Write-Host ""
+Write-Host "Setup complete. Open a new terminal, place a PDF in input/, then run start.bat." -ForegroundColor Green

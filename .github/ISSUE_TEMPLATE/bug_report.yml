@@ -1,0 +1,53 @@
+name: Bug report
+description: Report a reproducible defect in conversion, setup, or packaging.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a problem. Do not upload copyrighted or confidential PDFs.
+  - type: checkboxes
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues for this problem.
+          required: true
+        - label: This report does not contain a private security vulnerability.
+          required: true
+        - label: I can reproduce this with the latest release or `main`.
+          required: true
+  - type: input
+    attributes:
+      label: Version or commit
+      placeholder: v0.1.0 or commit SHA
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Environment
+      description: Include OS, Python, GPU, driver/CUDA, Pandoc, and Poppler versions.
+      placeholder: |
+        OS: Windows 11
+        Python: 3.12.x
+        GPU: NVIDIA ...
+        OCR size / DPI: gundam / 300
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Reproduction steps
+      description: Describe the PDF without sharing protected content, and list the exact command.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Actual behavior and logs
+      render: shell
+    validations:
+      required: true
