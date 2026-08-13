@@ -71,6 +71,56 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 The script creates `.venv`, installs a CUDA-enabled PyTorch build and the Python package,
 checks Pandoc and Poppler, and creates `input/` and `output/` directories.
 
+### Docker setup (optional CLI workflow)
+
+Docker keeps Python, CUDA libraries, Pandoc, Poppler, and the application in one reproducible
+container. It runs the command-line interface, not the Windows desktop GUI.
+
+Prerequisites:
+
+- an NVIDIA GPU with a current host driver;
+- Docker Desktop with the WSL 2 backend on Windows, or Docker Engine plus NVIDIA Container
+  Toolkit on Linux;
+- Docker Compose v2 and at least 10 GB of free disk space.
+
+Build the image once:
+
+```bash
+git clone https://github.com/quby1845/pdf-to-epub.git
+cd pdf-to-epub
+docker compose build
+```
+
+Put one or more PDFs in `input/`, then start the guided workflow:
+
+```bash
+docker compose run --rm converter
+```
+
+For a repeatable non-interactive conversion:
+
+```bash
+docker compose run --rm converter \
+  "input/book.pdf" \
+  --output "output/book.epub" \
+  --title "Book Title" \
+  --author "Author Name" \
+  --lang en \
+  --ocr-size large \
+  --yes
+```
+
+The host `input/` and `output/` directories are mounted into the container, while a named Docker
+volume keeps downloaded OCR models between runs. Confirm GPU access with:
+
+```bash
+docker compose run --rm --entrypoint python converter \
+  -c "import torch; print('CUDA available:', torch.cuda.is_available())"
+```
+
+`docker compose down` stops the project without deleting the model cache. Use
+`docker compose down --volumes` only when you intentionally want to remove downloaded models.
+
 ### Manual setup
 
 Install a CUDA-compatible PyTorch build using the

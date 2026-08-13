@@ -32,6 +32,58 @@ Windows koruma uyarısı gösterirse yalnızca bu GitHub deposundan indirdiğini
 Pandoc, Poppler ve programın bağımlılıklarını hazırlar. İnternet hızına göre 10–30 dakika
 sürebilir; masaüstüne ve Başlat menüsüne **PDF to EPUB OCR** kısayolu ekler.
 
+## Docker ile kurulum (isteğe bağlı)
+
+Docker; Python, CUDA kütüphaneleri, Pandoc, Poppler ve programı tek bir yalıtılmış ortamda kurar.
+Bu yöntem masaüstü arayüzünü değil, komut satırı sürümünü çalıştırır. Normal Windows kullanıcısı
+için yukarıdaki `KURULUM.bat` yöntemi daha kolaydır.
+
+Gerekenler:
+
+- Güncel sürücülü bir NVIDIA ekran kartı
+- Windows'ta WSL 2 altyapısıyla çalışan Docker Desktop veya Linux'ta Docker Engine ve NVIDIA
+  Container Toolkit
+- Docker Compose v2 ve en az 10 GB boş alan
+
+Önce projeyi indirip Docker imajını bir kez oluşturun:
+
+```powershell
+git clone https://github.com/quby1845/pdf-to-epub.git
+cd pdf-to-epub
+docker compose build
+```
+
+PDF dosyanızı projenin `input` klasörüne koyun. Rehberli kullanım için şu komutu çalıştırın:
+
+```powershell
+docker compose run --rm converter
+```
+
+Tek komutla doğrudan dönüştürmek isterseniz:
+
+```powershell
+docker compose run --rm converter `
+  "input/kitap.pdf" `
+  --output "output/kitap.epub" `
+  --title "Kitap Adı" `
+  --author "Yazar Adı" `
+  --lang tr `
+  --ocr-size large `
+  --yes
+```
+
+Oluşan EPUB bilgisayarınızdaki `output` klasörüne yazılır. OCR modeli Docker'ın kalıcı `models`
+alanında saklandığı için her dönüşümde yeniden indirilmez. GPU'nun container içinde görüldüğünü
+şöyle kontrol edebilirsiniz:
+
+```powershell
+docker compose run --rm --entrypoint python converter `
+  -c "import torch; print('CUDA kullanılabilir:', torch.cuda.is_available())"
+```
+
+`docker compose down` model önbelleğini silmez. İndirilen modelleri de özellikle kaldırmak
+isterseniz `docker compose down --volumes` kullanın.
+
 ## EPUB oluşturma
 
 1. Masaüstündeki veya Başlat menüsündeki **PDF to EPUB OCR** kısayolunu açın. Kurulumdan sonra

@@ -1,0 +1,15 @@
+.git
+.github
+.pytest_cache
+.pytest-work
+.ruff_cache
+.test-venv
+__pycache__
+*.py[cod]
+*.epub
+*.pdf
+.coverage
+build
+dist
+input
+output

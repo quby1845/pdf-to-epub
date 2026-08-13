@@ -1,0 +1,23 @@
+name: pdf-to-epub-ocr
+
+services:
+  converter:
+    build:
+      context: .
+    image: pdf-to-epub-ocr:local
+    stdin_open: true
+    tty: true
+    volumes:
+      - ./input:/workspace/input
+      - ./output:/workspace/output
+      - models:/cache
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+volumes:
+  models:
