@@ -94,7 +94,8 @@ metadata was prepared. Installation from PyPI will be documented after the first
 For most Windows users, open the desktop shortcut created by `KURULUM.bat`. The graphical app
 provides file selection, book metadata, OCR quality choices, progress updates, and actionable
 error messages without requiring a terminal. During OCR it reports the real current page, total
-page count, and completion percentage from pdf-craft's page events.
+page count, and completion percentage from pdf-craft's page events. A persistent light/dark theme
+toggle updates the complete interface, including native Windows chrome.
 
 Advanced users can use the CLI:
 

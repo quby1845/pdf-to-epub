@@ -7,8 +7,9 @@ testable without requiring a graphical display in CI.
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
-from platformdirs import user_cache_path
+from platformdirs import user_cache_path, user_config_path
 
 from pdf_to_epub.converter import (
     BookMetadata,
@@ -26,6 +27,7 @@ MODEL_LABELS = {
     "Gundam — en yüksek kalite": "gundam",
 }
 DEFAULT_MODEL_LABEL = "Large — dengeli (önerilen)"
+ThemeName = Literal["light", "dark"]
 
 _MODEL_DESCRIPTIONS = {
     "tiny": "En hızlı seçenektir; metin kalitesi daha düşük olabilir.",
@@ -43,6 +45,31 @@ _PROGRESS_TRANSLATIONS = {
     "Repairing line-end hyphenation": "Satır sonu kelimeleri düzeltiliyor",
     "Building EPUB with Pandoc": "EPUB dosyası hazırlanıyor",
 }
+
+
+def theme_preference_path() -> Path:
+    """Return the per-user file used to remember the desktop theme."""
+    return user_config_path("pdf-to-epub-ocr") / "theme.txt"
+
+
+def load_theme_preference(settings_path: Path | None = None) -> ThemeName:
+    """Load a saved theme, falling back safely when the file is absent or invalid."""
+    path = settings_path or theme_preference_path()
+    try:
+        value = path.read_text(encoding="utf-8").strip().casefold()
+    except OSError:
+        return "light"
+    return "dark" if value == "dark" else "light"
+
+
+def save_theme_preference(theme: ThemeName, settings_path: Path | None = None) -> None:
+    """Persist a desktop theme without making the UI fail on a read-only profile."""
+    path = settings_path or theme_preference_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(f"{theme}\n", encoding="utf-8")
+    except OSError:
+        pass
 
 
 def default_epub_path(pdf_path: Path, title: str, author: str) -> Path:

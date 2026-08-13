@@ -41,6 +41,10 @@ sürebilir; masaüstüne ve Başlat menüsüne **PDF to EPUB OCR** kısayolu ekl
 4. OCR modeli olarak önce **large — dengeli** seçeneğini deneyin.
 5. **EPUB'a Dönüştür** düğmesine basın.
 
+Sağ üstteki **Koyu tema** düğmesiyle görünümü değiştirebilirsiniz. Seçiminiz hatırlanır ve program
+bir sonraki açılışta aynı temayı kullanır. Dönüşüm sürerken yanlışlıkla arayüzü yenilememek için
+tema düğmesi işlem bitene kadar geçici olarak kilitlenir.
+
 İlk dönüşümde OCR modeli indirileceği için ilerleme bir süre aynı yerde görünebilir. Program
 bittiğinde EPUB varsayılan olarak PDF'nin bulunduğu klasöre kaydedilir. Sayfa okuma başlayınca
 program toplam sayfa sayısını, o anda okunan sayfayı ve tamamlanma yüzdesini canlı gösterir.
