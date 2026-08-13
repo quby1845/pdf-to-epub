@@ -27,7 +27,7 @@ jobs:
       - run: pdf-to-epub-ocr --version
       - run: ruff check .
       - run: ruff format --check .
-      - run: pytest
+      - run: python -m pytest
 
   package:
     runs-on: ubuntu-latest
