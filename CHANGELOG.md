@@ -9,6 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Turkish desktop interface with PDF selection, book metadata, model guidance, progress, and
+  friendly error reporting.
+- One-click Windows installer/launcher, automatic supported-Python discovery, and a desktop
+  shortcut.
+- Turkish end-user guide and a downloadable Windows easy-start release bundle.
 - Installable `pdf-to-epub-ocr` Python package and console command.
 - Unit tests, linting, coverage enforcement, multi-version CI, and package verification.
 - Tag-driven GitHub Release and PyPI Trusted Publishing workflow.

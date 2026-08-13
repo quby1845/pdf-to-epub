@@ -41,6 +41,9 @@ dev = [
 [project.scripts]
 pdf-to-epub-ocr = "pdf_to_epub.cli:main"
 
+[project.gui-scripts]
+pdf-to-epub-gui = "pdf_to_epub.gui:main"
+
 [project.urls]
 Homepage = "https://github.com/quby1845/pdf-to-epub"
 Repository = "https://github.com/quby1845/pdf-to-epub"
@@ -59,7 +62,13 @@ include = [
   "/LICENSE",
   "/MAINTAINERS.md",
   "/README.md",
+  "/README_TR.md",
   "/SECURITY.md",
+  "/KURULUM.bat",
+  "/PDF-TO-EPUB.bat",
+  "/launch.ps1",
+  "/setup.ps1",
+  "/start.bat",
   "/pyproject.toml",
 ]
 
@@ -70,6 +79,7 @@ testpaths = ["tests"]
 [tool.coverage.run]
 branch = true
 source = ["pdf_to_epub"]
+omit = ["src/pdf_to_epub/gui.py"]
 
 [tool.ruff]
 line-length = 100

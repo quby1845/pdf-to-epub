@@ -1,0 +1,86 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from pdf_to_epub.desktop import (
+    DEFAULT_MODEL_LABEL,
+    build_conversion_options,
+    default_epub_path,
+    friendly_error,
+    friendly_progress,
+)
+
+
+def test_default_epub_path_uses_book_metadata(tmp_path: Path) -> None:
+    pdf = tmp_path / "tarama.pdf"
+    assert default_epub_path(pdf, "Çalıkuşu", "Reşat Nuri") == (
+        tmp_path / "Çalıkuşu - Reşat Nuri.epub"
+    )
+    assert default_epub_path(pdf, "", "") == tmp_path / "tarama.epub"
+    assert default_epub_path(pdf, "Tarama", "Bilinmiyor") == tmp_path / "Tarama.epub"
+
+
+def test_build_conversion_options_maps_desktop_defaults(tmp_path: Path) -> None:
+    pdf = tmp_path / "kitap.pdf"
+    pdf.write_bytes(b"%PDF")
+    output = tmp_path / "kitap.epub"
+
+    options = build_conversion_options(
+        pdf_path=pdf,
+        epub_path=output,
+        title=" ",
+        author=" ",
+        language=" ",
+        model_label=DEFAULT_MODEL_LABEL,
+        overwrite=True,
+    )
+
+    assert options.pdf_path == pdf.resolve()
+    assert options.epub_path == output.resolve()
+    assert options.metadata.title == "kitap"
+    assert options.metadata.author == "Bilinmiyor"
+    assert options.metadata.language == "tr"
+    assert options.ocr_size == "large"
+    assert options.dpi == 300
+    assert options.overwrite is True
+    assert options.css_path is not None
+
+
+@pytest.mark.parametrize(
+    ("pdf_name", "output_name", "model", "message"),
+    [
+        ("missing.pdf", "book.epub", DEFAULT_MODEL_LABEL, "PDF dosyası"),
+        ("book.pdf", ".", DEFAULT_MODEL_LABEL, "kaydedileceği"),
+        ("book.pdf", "book.txt", DEFAULT_MODEL_LABEL, ".epub"),
+        ("book.pdf", "book.epub", "unknown", "OCR modeli"),
+    ],
+)
+def test_build_conversion_options_rejects_bad_form_values(
+    tmp_path: Path, pdf_name: str, output_name: str, model: str, message: str
+) -> None:
+    pdf = tmp_path / pdf_name
+    if pdf_name == "book.pdf":
+        pdf.write_bytes(b"%PDF")
+    output = Path(".") if output_name == "." else tmp_path / output_name
+
+    with pytest.raises(ValueError, match=message):
+        build_conversion_options(
+            pdf_path=pdf,
+            epub_path=output,
+            title="Book",
+            author="Author",
+            language="tr",
+            model_label=model,
+            overwrite=False,
+        )
+
+
+def test_desktop_messages_are_friendly_and_future_safe() -> None:
+    assert "modeli" in friendly_progress("Checking and downloading OCR models")
+    assert friendly_progress("Future stage") == "Future stage"
+    assert "KURULUM.bat" in friendly_error(RuntimeError("Pandoc was not found on PATH"))
+    assert "CUDA" in friendly_error(RuntimeError("CUDA is not available"))
+    assert "base" in friendly_error(RuntimeError("CUDA out of memory"))
+    assert friendly_error(RuntimeError("different failure")) == "different failure"

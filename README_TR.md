@@ -1,0 +1,73 @@
+# PDF to EPUB OCR — Türkçe kolay kullanım
+
+Taranmış PDF kitapları, yazı boyutu değiştirilebilen ve e-kitap okuyucularda rahat kullanılan
+EPUB dosyalarına dönüştürür. OCR işlemi kendi bilgisayarınızda yapılır; kitabın sayfaları bir
+metin API'sine gönderilmez.
+
+> [!IMPORTANT]
+> Program şu anda alfa sürümündedir. Oluşan EPUB'ı mutlaka kontrol edin ve kaynak PDF'yi
+> saklayın. Yalnızca dönüştürme hakkınız bulunan belgeleri kullanın.
+
+## Bilgisayarım uygun mu?
+
+- Windows 10 veya Windows 11
+- Python 3.11–3.13 (yoksa kolay kurulum yüklemeyi dener)
+- NVIDIA ekran kartı; `gundam` modeli için 8 GB VRAM önerilir
+- En az 16 GB RAM ve yaklaşık 10 GB boş alan
+- İlk kurulum ve ilk model indirmesi için internet bağlantısı
+
+NVIDIA ekran kartınız yoksa dönüşüm çok yavaş olabilir veya hiç çalışmayabilir. Bu sürümde CPU
+ile dönüşüm resmî olarak desteklenmemektedir.
+
+## Üç adımda kurulum
+
+1. [Son sürüm sayfasını](https://github.com/quby1845/pdf-to-epub/releases/latest) açın ve adı
+   **`windows-easy-start.zip`** ile biten dosyayı indirin.
+2. ZIP dosyasına sağ tıklayıp **Tümünü ayıkla** seçeneğini kullanın. Programı ZIP'in içinden
+   çalıştırmayın.
+3. Ayıklanan klasörde **`KURULUM.bat`** dosyasına çift tıklayın.
+
+Windows koruma uyarısı gösterirse yalnızca bu GitHub deposundan indirdiğinizi doğruladıktan sonra
+**Daha fazla bilgi → Yine de çalıştır** yolunu kullanın. Kurulum; Python, CUDA destekli PyTorch,
+Pandoc, Poppler ve programın bağımlılıklarını hazırlar. İnternet hızına göre 10–30 dakika
+sürebilir ve masaüstüne **PDF to EPUB OCR** kısayolu ekler.
+
+## EPUB oluşturma
+
+1. Masaüstündeki **PDF to EPUB OCR** kısayolunu açın.
+2. **PDF seç** düğmesiyle kitabınızı seçin.
+3. Kitap adı, yazar ve dili kontrol edin.
+4. OCR modeli olarak önce **large — dengeli** seçeneğini deneyin.
+5. **EPUB'a Dönüştür** düğmesine basın.
+
+İlk dönüşümde OCR modeli indirileceği için ilerleme bir süre aynı yerde görünebilir. Program
+bittiğinde EPUB varsayılan olarak PDF'nin bulunduğu klasöre kaydedilir.
+
+## Hangi OCR modelini seçmeliyim?
+
+| Model | Ne zaman kullanılır? |
+| --- | --- |
+| `small` | Düşük ekran kartı belleği; kalite daha düşük olabilir |
+| `base` | Bellek hatası alan bilgisayarlar |
+| `large` | Çoğu kullanıcı için dengeli ve önerilen başlangıç |
+| `gundam` | 8 GB veya daha fazla VRAM ile en yüksek kalite |
+
+## Sorun yaşarsanız
+
+| Sorun | Çözüm |
+| --- | --- |
+| Kurulum yarıda kaldı | `KURULUM.bat` dosyasını yeniden çalıştırın |
+| Ekran kartı belleği hatası | Modeli `base` veya `small` seçin; diğer GPU uygulamalarını kapatın |
+| Pandoc/PyTorch bulunamadı | Kurulumu yeniden çalıştırın ve bilgisayarı yeniden başlatın |
+| EPUB zaten var | Farklı kayıt adı seçin veya üzerine yazmayı onaylayın |
+| OCR hataları var | Daha temiz tarama veya daha güçlü model deneyin |
+
+Devam eden bir sorun için [hata bildirimi açabilirsiniz](https://github.com/quby1845/pdf-to-epub/issues/new/choose).
+Telifli ya da özel PDF dosyalarını hata bildirimine yüklemeyin; sorunu tarif edin veya herkese açık
+küçük bir örnek kullanın.
+
+## Gizlilik
+
+PDF içeriği bilgisayarınızda işlenir. İlk kullanımda model dosyaları indirilebilir; bu indirme
+belgenizin içeriğini göndermez. Kullanılan açık kaynak bileşenler ve ayrıntılı teknik bilgiler için
+[ana README dosyasına](README.md) bakabilirsiniz.

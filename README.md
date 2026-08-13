@@ -13,6 +13,20 @@ processed on your machine; no document text is sent to an external API.
 > This project is in alpha. Keep the original PDF and review generated EPUBs before relying
 > on them. OCR output is never guaranteed to be an exact transcription.
 
+**Türkçe kullanım:** [Türkçe kolay kurulum ve kullanım rehberi](README_TR.md)
+
+## Easiest Windows setup (no command line)
+
+1. Download the **Windows easy-start ZIP** from the
+   [latest release](https://github.com/quby1845/pdf-to-epub/releases/latest) and extract it.
+2. Double-click **`KURULUM.bat`**. It installs the required components and creates a desktop
+   shortcut. The first setup can take 10–30 minutes because the OCR stack is large.
+3. Open **PDF to EPUB OCR** from the desktop, select a PDF, confirm the book details, and click
+   **EPUB'a Dönüştür**.
+
+The desktop app keeps the document on your computer and saves the EPUB beside the selected PDF
+by default. A supported conversion currently requires Windows 10/11 and an NVIDIA CUDA GPU.
+
 ## Why this project
 
 PDF pages have a fixed layout, while EPUB content adapts to an e-reader's screen and font
@@ -75,7 +89,11 @@ metadata was prepared. Installation from PyPI will be documented after the first
 
 ## Usage
 
-Place a PDF in `input/` and double-click `start.bat`, or use the CLI:
+For most Windows users, open the desktop shortcut created by `KURULUM.bat`. The graphical app
+provides file selection, book metadata, OCR quality choices, progress updates, and actionable
+error messages without requiring a terminal.
+
+Advanced users can use the CLI:
 
 ```bash
 # Installed command
