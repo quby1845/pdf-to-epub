@@ -7,6 +7,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-13
+
+### Fixed
+
+- Build Windows easy-start ZIP files with CRLF line endings so `cmd.exe` can run the included
+  batch launchers without dropping characters or repeatedly reporting unknown commands.
+- Pass the repository explicitly when creating GitHub Releases from a job without a checkout.
+- Keep PyPI publishing opt-in until the repository's Trusted Publisher is configured.
+
+## [0.1.0] - 2026-08-13
+
 ### Added
 
 - Turkish desktop interface with PDF selection, book metadata, model guidance, progress, and
@@ -35,4 +46,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/quby1845/pdf-to-epub/releases/tag/v0.1.0
