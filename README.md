@@ -19,13 +19,15 @@ processed on your machine; no document text is sent to an external API.
 
 1. Download the **Windows easy-start ZIP** from the
    [latest release](https://github.com/quby1845/pdf-to-epub/releases/latest) and extract it.
-2. Double-click **`KURULUM.bat`**. It installs the required components and creates a desktop
-   shortcut. The first setup can take 10–30 minutes because the OCR stack is large.
-3. Open **PDF to EPUB OCR** from the desktop, select a PDF, confirm the book details, and click
+2. Double-click **`KURULUM.bat`**. It installs the required components and creates desktop and
+   Start menu shortcuts. The first setup can take 10–30 minutes because the OCR stack is large.
+3. Open **PDF to EPUB OCR** from the desktop or Start menu, select a PDF, confirm the book details, and click
    **EPUB'a Dönüştür**.
 
 The desktop app keeps the document on your computer and saves the EPUB beside the selected PDF
-by default. A supported conversion currently requires Windows 10/11 and an NVIDIA CUDA GPU.
+by default. Once setup is complete, the app launches without a command prompt and provides a
+normal windowed workflow. A supported conversion currently requires Windows 10/11 and an NVIDIA
+CUDA GPU.
 
 ## Why this project
 

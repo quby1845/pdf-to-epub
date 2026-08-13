@@ -30,11 +30,12 @@ ile dönüşüm resmî olarak desteklenmemektedir.
 Windows koruma uyarısı gösterirse yalnızca bu GitHub deposundan indirdiğinizi doğruladıktan sonra
 **Daha fazla bilgi → Yine de çalıştır** yolunu kullanın. Kurulum; Python, CUDA destekli PyTorch,
 Pandoc, Poppler ve programın bağımlılıklarını hazırlar. İnternet hızına göre 10–30 dakika
-sürebilir ve masaüstüne **PDF to EPUB OCR** kısayolu ekler.
+sürebilir; masaüstüne ve Başlat menüsüne **PDF to EPUB OCR** kısayolu ekler.
 
 ## EPUB oluşturma
 
-1. Masaüstündeki **PDF to EPUB OCR** kısayolunu açın.
+1. Masaüstündeki veya Başlat menüsündeki **PDF to EPUB OCR** kısayolunu açın. Kurulumdan sonra
+   komut penceresi görünmez; program normal bir Windows uygulaması olarak açılır.
 2. **PDF seç** düğmesiyle kitabınızı seçin.
 3. Kitap adı, yazar ve dili kontrol edin.
 4. OCR modeli olarak önce **large — dengeli** seçeneğini deneyin.
