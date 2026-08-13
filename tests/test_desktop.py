@@ -10,6 +10,8 @@ from pdf_to_epub.desktop import (
     default_epub_path,
     friendly_error,
     friendly_progress,
+    model_description,
+    progress_stage,
 )
 
 
@@ -84,3 +86,12 @@ def test_desktop_messages_are_friendly_and_future_safe() -> None:
     assert "CUDA" in friendly_error(RuntimeError("CUDA is not available"))
     assert "base" in friendly_error(RuntimeError("CUDA out of memory"))
     assert friendly_error(RuntimeError("different failure")) == "different failure"
+
+
+def test_desktop_model_guidance_and_progress_stages() -> None:
+    assert "önerilen" in model_description(DEFAULT_MODEL_LABEL)
+    assert model_description("not-a-model") == "OCR modelini seçin."
+    assert progress_stage("Checking and downloading OCR models") == 0
+    assert progress_stage("Converting PDF to Markdown with OCR") == 1
+    assert progress_stage("Building EPUB with Pandoc") == 2
+    assert progress_stage("Future stage") == 0

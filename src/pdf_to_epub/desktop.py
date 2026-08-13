@@ -18,13 +18,21 @@ from pdf_to_epub.converter import (
 )
 
 MODEL_LABELS = {
-    "tiny — en hızlı / en düşük kalite": "tiny",
-    "small — düşük VRAM": "small",
-    "base — uyumlu": "base",
-    "large — dengeli (önerilen)": "large",
-    "gundam — en iyi kalite / 8+ GB VRAM": "gundam",
+    "Tiny — en hızlı": "tiny",
+    "Small — düşük bellek": "small",
+    "Base — hafif ve uyumlu": "base",
+    "Large — dengeli (önerilen)": "large",
+    "Gundam — en yüksek kalite": "gundam",
 }
-DEFAULT_MODEL_LABEL = "large — dengeli (önerilen)"
+DEFAULT_MODEL_LABEL = "Large — dengeli (önerilen)"
+
+_MODEL_DESCRIPTIONS = {
+    "tiny": "En hızlı seçenektir; metin kalitesi daha düşük olabilir.",
+    "small": "Daha az ekran kartı belleği kullanır.",
+    "base": "Belleği sınırlı bilgisayarlar için güvenli başlangıçtır.",
+    "large": "Hız ve kalite arasında çoğu kitap için önerilen dengedir.",
+    "gundam": "En iyi kaliteyi hedefler; güçlü bir ekran kartı ve daha fazla zaman ister.",
+}
 
 _PROGRESS_TRANSLATIONS = {
     "Checking and downloading OCR models": (
@@ -83,6 +91,25 @@ def build_conversion_options(
 def friendly_progress(message: str) -> str:
     """Translate known pipeline stages while preserving future messages."""
     return _PROGRESS_TRANSLATIONS.get(message, message)
+
+
+def progress_stage(message: str) -> int:
+    """Map a pipeline message to the three-stage desktop progress indicator."""
+    stages = {
+        "Checking and downloading OCR models": 0,
+        "Converting PDF to Markdown with OCR": 1,
+        "Repairing line-end hyphenation": 2,
+        "Building EPUB with Pandoc": 2,
+    }
+    return stages.get(message, 0)
+
+
+def model_description(model_label: str) -> str:
+    """Return short, non-technical guidance for a desktop model choice."""
+    model = MODEL_LABELS.get(model_label)
+    if model is None:
+        return "OCR modelini seçin."
+    return _MODEL_DESCRIPTIONS[model]
 
 
 def friendly_error(error: Exception) -> str:

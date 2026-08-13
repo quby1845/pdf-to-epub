@@ -132,14 +132,23 @@ if (-not (Get-Command pdftoppm -ErrorAction SilentlyContinue)) {
 Write-Host "[6/6] Masaustu kisayolu hazirlaniyor..." -ForegroundColor Green
 try {
     $shell = New-Object -ComObject WScript.Shell
+    $powerShellPath = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+    $launchScript = Join-Path $PSScriptRoot "launch.ps1"
+    $guiLauncher = Join-Path $PSScriptRoot ".venv\Scripts\pdf-to-epub-gui.exe"
     $desktop = [Environment]::GetFolderPath("Desktop")
-    $shortcut = $shell.CreateShortcut((Join-Path $desktop "PDF to EPUB OCR.lnk"))
-    $shortcut.TargetPath = Join-Path $PSScriptRoot "PDF-TO-EPUB.bat"
-    $shortcut.WorkingDirectory = $PSScriptRoot
-    $shortcut.Description = "Taranmis PDF dosyalarini EPUB'a donustur"
-    $shortcut.Save()
+    $programs = [Environment]::GetFolderPath("Programs")
+
+    foreach ($shortcutFolder in @($desktop, $programs)) {
+        $shortcut = $shell.CreateShortcut((Join-Path $shortcutFolder "PDF to EPUB OCR.lnk"))
+        $shortcut.TargetPath = $powerShellPath
+        $shortcut.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$launchScript`""
+        $shortcut.WorkingDirectory = $PSScriptRoot
+        $shortcut.IconLocation = "$guiLauncher,0"
+        $shortcut.Description = "Taranmis PDF dosyalarini EPUB'a donustur"
+        $shortcut.Save()
+    }
 } catch {
-    Write-Host "Masaustu kisayolu olusturulamadi; PDF-TO-EPUB.bat yine kullanilabilir." -ForegroundColor Yellow
+    Write-Host "Uygulama kisayollari olusturulamadi; PDF-TO-EPUB.bat yine kullanilabilir." -ForegroundColor Yellow
 }
 
 & $venvPython -c "import torch; print(f'PyTorch {torch.__version__}; CUDA kullanilabilir: {torch.cuda.is_available()}')"

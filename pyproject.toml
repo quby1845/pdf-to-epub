@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pdf-to-epub-ocr"
-version = "0.1.2"
+version = "0.2.0"
 description = "Convert scanned PDF books into reflowable EPUB files with local OCR."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -14,6 +14,7 @@ keywords = ["ebook", "epub", "ocr", "pdf", "pdf-craft"]
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
+  "Environment :: Win32 (MS Windows)",
   "Intended Audience :: End Users/Desktop",
   "License :: OSI Approved :: MIT License",
   "Operating System :: Microsoft :: Windows",
