@@ -44,6 +44,10 @@ sürebilir; masaüstüne ve Başlat menüsüne **PDF to EPUB OCR** kısayolu ekl
 İlk dönüşümde OCR modeli indirileceği için ilerleme bir süre aynı yerde görünebilir. Program
 bittiğinde EPUB varsayılan olarak PDF'nin bulunduğu klasöre kaydedilir.
 
+Program PDF'de satır sonunda bölünmüş `bit-miş` gibi Türkçe kelimeleri EPUB oluşturulurken
+otomatik olarak birleştirir. Gerçek tireli `e-posta` benzeri sözcükleri korumaya çalışır; OCR
+sonucu belgeye göre değişebileceği için oluşan EPUB'ı yine de gözden geçirin.
+
 ## Hangi OCR modelini seçmeliyim?
 
 | Model | Ne zaman kullanılır? |

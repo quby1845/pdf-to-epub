@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-13
+
+### Fixed
+
+- Remove OCR line-wrap hyphens that survive inside Turkish words, including visible Unicode
+  hyphens and invisible soft hyphens, while preserving common intentional compounds such as
+  `e-posta` and `sosyo-ekonomik`.
+
 ## [0.2.0] - 2026-08-13
 
 ### Added
@@ -72,7 +80,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.0...v0.1.1
