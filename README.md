@@ -95,7 +95,9 @@ For most Windows users, open the desktop shortcut created by `KURULUM.bat`. The 
 provides file selection, book metadata, OCR quality choices, progress updates, and actionable
 error messages without requiring a terminal. During OCR it reports the real current page, total
 page count, and completion percentage from pdf-craft's page events. A persistent light/dark theme
-toggle updates the complete interface, including native Windows chrome.
+toggle updates the complete interface, including native Windows chrome. The modern step-based
+layout uses bundled theme-aware icons, a visual file summary, and clear status feedback; no UI
+assets are fetched from the internet.
 
 Advanced users can use the CLI:
 

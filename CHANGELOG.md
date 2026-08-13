@@ -7,6 +7,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-08-13
+
+### Added
+
+- Add a bundled, theme-aware icon set with no network or runtime asset dependency.
+- Add a native application icon for the Windows title bar.
+
+### Changed
+
+- Redesign the desktop app with a modern product header, feature summary, visual file picker,
+  icon-led step cards, clearer conversion action, and icon-based progress and status feedback.
+- Show the selected PDF's filename, size, and folder before conversion.
+
 ## [0.4.0] - 2026-08-13
 
 ### Added
@@ -97,7 +110,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.2.0...v0.2.1

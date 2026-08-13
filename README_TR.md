@@ -45,6 +45,10 @@ Sağ üstteki **Koyu tema** düğmesiyle görünümü değiştirebilirsiniz. Se�
 bir sonraki açılışta aynı temayı kullanır. Dönüşüm sürerken yanlışlıkla arayüzü yenilememek için
 tema düğmesi işlem bitene kadar geçici olarak kilitlenir.
 
+Modern arayüzde her adım ve işlem için açık/koyu temaya uyumlu simgeler bulunur. PDF seçildiğinde
+dosya adı, boyutu ve bulunduğu klasör tek bakışta gösterilir. Bu simgeler programla birlikte gelir;
+arayüz açılırken internetten hiçbir görsel indirilmez.
+
 İlk dönüşümde OCR modeli indirileceği için ilerleme bir süre aynı yerde görünebilir. Program
 bittiğinde EPUB varsayılan olarak PDF'nin bulunduğu klasöre kaydedilir. Sayfa okuma başlayınca
 program toplam sayfa sayısını, o anda okunan sayfayı ve tamamlanma yüzdesini canlı gösterir.
