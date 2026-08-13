@@ -13,6 +13,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
+from pdf_to_epub import __version__
 from pdf_to_epub.converter import (
     ConversionOptions,
     ConversionProgress,
@@ -32,6 +33,7 @@ from pdf_to_epub.desktop import (
     progress_stage,
     save_theme_preference,
 )
+from pdf_to_epub.icons import create_app_icon, create_icon
 
 
 @dataclass(frozen=True)
@@ -57,6 +59,8 @@ class ThemePalette:
     status_bg: str
     secondary: str
     secondary_hover: str
+    accent_soft: str
+    accent_border: str
 
 
 THEMES = {
@@ -82,6 +86,8 @@ THEMES = {
         status_bg="#F7F8FA",
         secondary="#EEF0F5",
         secondary_hover="#E2E6ED",
+        accent_soft="#F0EEFF",
+        accent_border="#D8D3FF",
     ),
     "dark": ThemePalette(
         background="#0F1420",
@@ -105,6 +111,8 @@ THEMES = {
         status_bg="#20293A",
         secondary="#293448",
         secondary_hover="#36435A",
+        accent_soft="#262445",
+        accent_border="#45416F",
     ),
 }
 
@@ -115,14 +123,18 @@ class PdfToEpubApp:
     def __init__(self, root: tk.Tk) -> None:
         self.root = root
         self.root.title("PDF to EPUB OCR")
-        self.root.geometry("940x800")
-        self.root.minsize(760, 620)
+        self.root.geometry("980x860")
+        self.root.minsize(780, 640)
         self.theme_name = load_theme_preference()
         self.theme = THEMES[self.theme_name]
+        self.window_icon = create_app_icon(self.root)
+        self.root.iconphoto(True, self.window_icon)
         self.root.configure(background=self.theme.background)
         self.events: queue.Queue[tuple[str, object]] = queue.Queue()
         self.last_output: Path | None = None
         self.stage_labels: list[tk.Label] = []
+        self.stage_icon_labels: list[tk.Label] = []
+        self.icon_images: dict[tuple[str, str], tk.BitmapImage] = {}
         self.active_stage = -1
         self.status_kind = "neutral"
         self.converting = False
@@ -135,6 +147,10 @@ class PdfToEpubApp:
         self.model_var = tk.StringVar(value=DEFAULT_MODEL_LABEL)
         self.model_help_var = tk.StringVar(value=model_description(DEFAULT_MODEL_LABEL))
         self.status_var = tk.StringVar(value="Bir PDF seçerek başlayın.")
+        self.selected_file_var = tk.StringVar(value="Henüz PDF seçilmedi")
+        self.selected_file_detail_var = tk.StringVar(
+            value="Bilgisayarınızdan dönüştürmek istediğiniz kitabı seçin."
+        )
 
         self._configure_styles()
         self._build_ui()
@@ -228,14 +244,15 @@ class PdfToEpubApp:
         content = tk.Frame(
             self.content_canvas,
             background=theme.background,
-            padx=28,
-            pady=18,
+            padx=30,
+            pady=20,
         )
         self.content_window = self.content_canvas.create_window((0, 0), window=content, anchor="nw")
         content.bind("<Configure>", self._update_scroll_region)
         self.content_canvas.bind("<Configure>", self._resize_scroll_content)
         self.content_canvas.bind_all("<MouseWheel>", self._scroll_content)
 
+        self._build_hero(content)
         self._build_file_card(content)
         self._build_details_card(content)
         self._build_action_area(content)
@@ -255,35 +272,48 @@ class PdfToEpubApp:
 
     def _build_header(self, parent: tk.Widget) -> None:
         theme = self.theme
-        header = tk.Frame(parent, background=theme.header, padx=30, pady=22)
+        header = tk.Frame(parent, background=theme.header, padx=32, pady=18)
         header.pack(fill="x")
 
         brand = tk.Frame(header, background=theme.header)
         brand.pack(fill="x")
 
-        mark = tk.Label(
+        mark = tk.Frame(
             brand,
-            text="P  →  E",
-            font=("Segoe UI", 11, "bold"),
-            foreground="white",
             background=theme.primary,
-            padx=12,
-            pady=8,
+            padx=11,
+            pady=11,
         )
         mark.pack(side="left", padx=(0, 14))
+        tk.Label(
+            mark,
+            image=self._icon("app", "white"),
+            background=theme.primary,
+        ).pack()
 
         titles = tk.Frame(brand, background=theme.header)
         titles.pack(side="left", fill="x", expand=True)
+        title_row = tk.Frame(titles, background=theme.header)
+        title_row.pack(anchor="w")
         tk.Label(
-            titles,
-            text="PDF to EPUB OCR",
-            font=("Segoe UI", 20, "bold"),
+            title_row,
+            text="PDF to EPUB",
+            font=("Segoe UI", 18, "bold"),
             foreground="white",
             background=theme.header,
-        ).pack(anchor="w")
+        ).pack(side="left")
+        tk.Label(
+            title_row,
+            text=f"v{__version__}",
+            font=("Segoe UI", 8, "bold"),
+            foreground=theme.header_muted,
+            background="#273247",
+            padx=7,
+            pady=3,
+        ).pack(side="left", padx=(9, 0))
         tk.Label(
             titles,
-            text="Taranmış kitabınızı okunabilir bir e-kitaba dönüştürün",
+            text="Yerel OCR ile sade, güvenli ve okunabilir e-kitaplar",
             font=("Segoe UI", 10),
             foreground=theme.header_muted,
             background=theme.header,
@@ -291,7 +321,9 @@ class PdfToEpubApp:
 
         privacy = tk.Label(
             brand,
-            text="●  Yerel ve gizli",
+            text="Yerel ve gizli",
+            image=self._icon("shield", theme.privacy_fg),
+            compound="left",
             font=("Segoe UI", 9, "bold"),
             foreground=theme.privacy_fg,
             background=theme.privacy_bg,
@@ -303,6 +335,8 @@ class PdfToEpubApp:
         self.theme_button = tk.Button(
             brand,
             text="Açık tema" if self.theme_name == "dark" else "Koyu tema",
+            image=self._icon("sun" if self.theme_name == "dark" else "moon", "white"),
+            compound="left",
             command=self._toggle_theme,
             font=("Segoe UI", 9, "bold"),
             foreground="white",
@@ -319,6 +353,76 @@ class PdfToEpubApp:
         )
         self.theme_button.pack(side="right", padx=(0, 10))
 
+    def _icon(self, name: str, color: str) -> tk.BitmapImage:
+        key = (name, color)
+        if key not in self.icon_images:
+            self.icon_images[key] = create_icon(self.root, name, color)
+        return self.icon_images[key]
+
+    def _build_hero(self, parent: tk.Widget) -> None:
+        theme = self.theme
+        hero = tk.Frame(
+            parent,
+            background=theme.accent_soft,
+            highlightbackground=theme.accent_border,
+            highlightthickness=1,
+            padx=24,
+            pady=20,
+        )
+        hero.pack(fill="x", pady=(0, 14))
+
+        copy = tk.Frame(hero, background=theme.accent_soft)
+        copy.pack(side="left", fill="x", expand=True)
+        tk.Label(
+            copy,
+            text="YEREL OCR DÖNÜŞTÜRÜCÜ",
+            font=("Segoe UI", 8, "bold"),
+            foreground=theme.primary,
+            background=theme.accent_soft,
+        ).pack(anchor="w")
+        tk.Label(
+            copy,
+            text="PDF kitabınızı akıcı bir EPUB'a dönüştürün.",
+            font=("Segoe UI", 17, "bold"),
+            foreground=theme.ink,
+            background=theme.accent_soft,
+        ).pack(anchor="w", pady=(5, 4))
+        tk.Label(
+            copy,
+            text=(
+                "Taranmış sayfaları cihazınızda okuyup satır sonlarını ve kelime "
+                "bölünmelerini e-kitaba uygun biçimde düzenler."
+            ),
+            font=("Segoe UI", 9),
+            foreground=theme.muted,
+            background=theme.accent_soft,
+            wraplength=610,
+            justify="left",
+        ).pack(anchor="w")
+
+        features = tk.Frame(hero, background=theme.accent_soft)
+        features.pack(side="right", padx=(24, 0))
+        self._feature_pill(features, "shield", "Dosya yüklemez")
+        self._feature_pill(features, "scan", "GPU destekli")
+        self._feature_pill(features, "book", "E-okuyucu uyumlu")
+
+    def _feature_pill(self, parent: tk.Widget, icon: str, text: str) -> None:
+        theme = self.theme
+        pill = tk.Frame(parent, background=theme.card, padx=10, pady=6)
+        pill.pack(anchor="e", pady=2)
+        tk.Label(
+            pill,
+            image=self._icon(icon, theme.primary),
+            background=theme.card,
+        ).pack(side="left", padx=(0, 7))
+        tk.Label(
+            pill,
+            text=text,
+            font=("Segoe UI", 8, "bold"),
+            foreground=theme.ink,
+            background=theme.card,
+        ).pack(side="left")
+
     def _card(self, parent: tk.Widget, *, pady: tuple[int, int]) -> tk.Frame:
         theme = self.theme
         card = tk.Frame(
@@ -332,21 +436,33 @@ class PdfToEpubApp:
         card.pack(fill="x", pady=pady)
         return card
 
-    def _section_heading(self, parent: tk.Widget, number: str, title: str, hint: str) -> None:
+    def _section_heading(
+        self,
+        parent: tk.Widget,
+        icon: str,
+        number: str,
+        title: str,
+        hint: str,
+    ) -> None:
         theme = self.theme
         row = tk.Frame(parent, background=theme.card)
         row.pack(fill="x", pady=(0, 13))
+        badge = tk.Frame(row, background=theme.accent_soft, padx=9, pady=9)
+        badge.pack(side="left", padx=(0, 12))
         tk.Label(
-            row,
-            text=number,
-            font=("Segoe UI", 9, "bold"),
-            foreground="white",
-            background=theme.primary,
-            width=3,
-            pady=4,
-        ).pack(side="left", padx=(0, 10))
+            badge,
+            image=self._icon(icon, theme.primary),
+            background=theme.accent_soft,
+        ).pack()
         text = tk.Frame(row, background=theme.card)
         text.pack(side="left", fill="x", expand=True)
+        tk.Label(
+            text,
+            text=f"ADIM {number}",
+            font=("Segoe UI", 7, "bold"),
+            foreground=theme.primary,
+            background=theme.card,
+        ).pack(anchor="w")
         tk.Label(
             text,
             text=title,
@@ -367,29 +483,66 @@ class PdfToEpubApp:
         card = self._card(parent, pady=(0, 13))
         self._section_heading(
             card,
+            "file",
             "1",
             "PDF dosyasını seçin",
             "Dosyanız bilgisayarınızdan çıkmaz; işlem tamamen yerel yapılır.",
         )
 
-        picker = tk.Frame(card, background=theme.card)
-        picker.pack(fill="x")
-        ttk.Entry(picker, textvariable=self.pdf_var, style="App.TEntry").pack(
-            side="left", fill="x", expand=True
+        picker = tk.Frame(
+            card,
+            background=theme.status_bg,
+            highlightbackground=theme.border,
+            highlightthickness=1,
+            padx=14,
+            pady=12,
         )
+        picker.pack(fill="x")
+
+        file_badge = tk.Frame(picker, background=theme.accent_soft, padx=10, pady=10)
+        file_badge.pack(side="left", padx=(0, 12))
+        tk.Label(
+            file_badge,
+            image=self._icon("file", theme.primary),
+            background=theme.accent_soft,
+        ).pack()
+
+        summary = tk.Frame(picker, background=theme.status_bg)
+        summary.pack(side="left", fill="x", expand=True)
+        tk.Label(
+            summary,
+            textvariable=self.selected_file_var,
+            font=("Segoe UI", 10, "bold"),
+            foreground=theme.ink,
+            background=theme.status_bg,
+            anchor="w",
+        ).pack(fill="x")
+        tk.Label(
+            summary,
+            textvariable=self.selected_file_detail_var,
+            font=("Segoe UI", 8),
+            foreground=theme.muted,
+            background=theme.status_bg,
+            anchor="w",
+        ).pack(fill="x", pady=(2, 0))
+
         self._button(
             picker,
             "PDF seç",
             self._choose_pdf,
             primary=True,
             padx=19,
+            icon="folder",
         ).pack(side="left", padx=(12, 0))
+
+        ttk.Entry(card, textvariable=self.pdf_var, style="App.TEntry").pack(fill="x", pady=(10, 0))
 
     def _build_details_card(self, parent: tk.Widget) -> None:
         theme = self.theme
         card = self._card(parent, pady=(0, 13))
         self._section_heading(
             card,
+            "sliders",
             "2",
             "Kitap bilgilerini kontrol edin",
             "Bu bilgiler EPUB kapağında ve e-kitaplığınızda görünür.",
@@ -425,18 +578,24 @@ class PdfToEpubApp:
         tk.Label(
             model_box,
             textvariable=self.model_help_var,
+            image=self._icon("sparkles", theme.primary),
+            compound="left",
             font=("Segoe UI", 8),
             foreground=theme.muted,
-            background=theme.card,
+            background=theme.accent_soft,
             wraplength=350,
             justify="left",
-        ).pack(anchor="w", pady=(5, 0))
+            padx=9,
+            pady=7,
+        ).pack(fill="x", pady=(6, 0))
 
         output_box = tk.Frame(card, background=theme.card)
         output_box.pack(fill="x", pady=(14, 0))
         tk.Label(
             output_box,
             text="EPUB'ın kaydedileceği yer",
+            image=self._icon("save", theme.primary),
+            compound="left",
             font=("Segoe UI", 9, "bold"),
             foreground=theme.ink,
             background=theme.card,
@@ -446,9 +605,13 @@ class PdfToEpubApp:
         ttk.Entry(output_row, textvariable=self.output_var, style="App.TEntry").pack(
             side="left", fill="x", expand=True
         )
-        self._button(output_row, "Değiştir", self._choose_output, padx=16).pack(
-            side="left", padx=(12, 0)
-        )
+        self._button(
+            output_row,
+            "Değiştir",
+            self._choose_output,
+            padx=16,
+            icon="folder",
+        ).pack(side="left", padx=(12, 0))
 
     def _field(
         self,
@@ -479,34 +642,42 @@ class PdfToEpubApp:
     def _build_action_area(self, parent: tk.Widget) -> None:
         theme = self.theme
         card = self._card(parent, pady=(0, 0))
-        top = tk.Frame(card, background=theme.card)
-        top.pack(fill="x")
+        self._section_heading(
+            card,
+            "sparkles",
+            "3",
+            "Dönüştürmeyi başlatın",
+            "Süre; sayfa sayısı, tarama kalitesi ve ekran kartına göre değişir.",
+        )
 
-        text = tk.Frame(top, background=theme.card)
-        text.pack(side="left", fill="x", expand=True)
+        action_bar = tk.Frame(card, background=theme.accent_soft, padx=14, pady=12)
+        action_bar.pack(fill="x")
+        action_copy = tk.Frame(action_bar, background=theme.accent_soft)
+        action_copy.pack(side="left", fill="x", expand=True)
         tk.Label(
-            text,
-            text="3  Dönüştürmeyi başlatın",
-            font=("Segoe UI", 11, "bold"),
+            action_copy,
+            text="Her şey hazır olduğunda tek tıkla başlayın",
+            font=("Segoe UI", 10, "bold"),
             foreground=theme.ink,
-            background=theme.card,
+            background=theme.accent_soft,
         ).pack(anchor="w")
         tk.Label(
-            text,
-            text="Süre; sayfa sayısı, tarama kalitesi ve ekran kartına göre değişir.",
-            font=("Segoe UI", 9),
+            action_copy,
+            text="İlerlemeyi sayfa sayfa burada görebilirsiniz.",
+            font=("Segoe UI", 8),
             foreground=theme.muted,
-            background=theme.card,
+            background=theme.accent_soft,
         ).pack(anchor="w", pady=(2, 0))
 
         self.convert_button = self._button(
-            top,
+            action_bar,
             "EPUB'a dönüştür",
             self._start_conversion,
             primary=True,
             padx=24,
             pady=11,
             font=("Segoe UI", 10, "bold"),
+            icon="play",
         )
         self.convert_button.pack(side="right", padx=(20, 0))
 
@@ -515,23 +686,45 @@ class PdfToEpubApp:
             mode="indeterminate",
             style="Primary.Horizontal.TProgressbar",
         )
-        self.progress.pack(fill="x", pady=(17, 10))
+        self.progress.pack(fill="x", pady=(15, 11))
 
         stage_row = tk.Frame(card, background=theme.card)
         stage_row.pack(fill="x")
-        for stage in ("Model hazırlanıyor", "Sayfalar okunuyor", "EPUB oluşturuluyor"):
+        for index, (icon, stage) in enumerate(
+            (
+                ("sparkles", "Model hazırlanıyor"),
+                ("scan", "Sayfalar okunuyor"),
+                ("book", "EPUB oluşturuluyor"),
+            )
+        ):
+            stage_row.columnconfigure(index, weight=1)
+            stage_box = tk.Frame(stage_row, background=theme.card)
+            stage_box.grid(row=0, column=index, sticky="w")
+            icon_label = tk.Label(
+                stage_box,
+                image=self._icon(icon, theme.stage_inactive),
+                background=theme.card,
+            )
+            icon_label.pack(side="left", padx=(0, 6))
             label = tk.Label(
-                stage_row,
-                text=f"○  {stage}",
+                stage_box,
+                text=stage,
                 font=("Segoe UI", 8),
                 foreground=theme.stage_inactive,
                 background=theme.card,
             )
-            label.pack(side="left", expand=True, anchor="w")
+            label.pack(side="left")
+            self.stage_icon_labels.append(icon_label)
             self.stage_labels.append(label)
 
         self.status_panel = tk.Frame(card, background=theme.status_bg, padx=12, pady=9)
         self.status_panel.pack(fill="x", pady=(12, 0))
+        self.status_icon = tk.Label(
+            self.status_panel,
+            image=self._icon("info", theme.muted),
+            background=theme.status_bg,
+        )
+        self.status_icon.pack(side="left", padx=(0, 8))
         self.status_label = tk.Label(
             self.status_panel,
             textvariable=self.status_var,
@@ -550,12 +743,14 @@ class PdfToEpubApp:
             "EPUB'ı aç",
             self._open_output,
             compact=True,
+            icon="external",
         )
         self.folder_button = self._button(
             self.result_actions,
             "Klasörü aç",
             self._open_output_folder,
             compact=True,
+            icon="folder",
         )
 
     def _button(
@@ -569,14 +764,17 @@ class PdfToEpubApp:
         padx: int = 14,
         pady: int = 8,
         font: tuple[str, int] | tuple[str, int, str] = ("Segoe UI", 9, "bold"),
+        icon: str | None = None,
     ) -> tk.Button:
         theme = self.theme
         background = theme.primary if primary else theme.secondary
         foreground = "white" if primary else theme.ink
         active_background = theme.primary_hover if primary else theme.secondary_hover
-        return tk.Button(
+        button = tk.Button(
             parent,
             text=text,
+            image=self._icon(icon, foreground) if icon else "",
+            compound="left",
             command=command,
             font=font,
             foreground=foreground,
@@ -590,6 +788,7 @@ class PdfToEpubApp:
             padx=10 if compact else padx,
             pady=5 if compact else pady,
         )
+        return button
 
     def _choose_pdf(self) -> None:
         selected = filedialog.askopenfilename(
@@ -600,6 +799,9 @@ class PdfToEpubApp:
             return
         pdf_path = Path(selected)
         self.pdf_var.set(str(pdf_path))
+        size_mb = pdf_path.stat().st_size / (1024 * 1024)
+        self.selected_file_var.set(pdf_path.name)
+        self.selected_file_detail_var.set(f"PDF • {size_mb:.1f} MB • {pdf_path.parent}")
         self.title_var.set(pdf_path.stem)
         self.output_var.set(str(default_epub_path(pdf_path, pdf_path.stem, self.author_var.get())))
         self._set_status("PDF hazır. Kitap bilgilerini kontrol edip dönüştürmeyi başlatın.")
@@ -676,7 +878,7 @@ class PdfToEpubApp:
                 if kind == "progress":
                     self._apply_progress(payload)  # type: ignore[arg-type]
                 elif kind == "warning":
-                    self._set_status(f"Uyarı: {payload}")
+                    self._set_status(f"Uyarı: {payload}", kind="warning")
                 elif kind == "success":
                     self._finish_success(payload)  # type: ignore[arg-type]
                 elif kind == "error":
@@ -722,34 +924,41 @@ class PdfToEpubApp:
     def _set_stage(self, active: int) -> None:
         self.active_stage = active
         theme = self.theme
-        for index, label in enumerate(self.stage_labels):
+        icon_names = ("sparkles", "scan", "book")
+        for index, (label, icon_label) in enumerate(
+            zip(self.stage_labels, self.stage_icon_labels, strict=True)
+        ):
             if active >= 3 or index < active:
-                label.configure(
-                    text=label.cget("text").replace("○", "●"),
-                    foreground=theme.success,
-                )
+                color = theme.success
             elif index == active:
-                label.configure(
-                    text=label.cget("text").replace("○", "●"),
-                    foreground=theme.primary,
-                )
+                color = theme.primary
             else:
-                label.configure(
-                    text=label.cget("text").replace("●", "○"),
-                    foreground=theme.stage_inactive,
-                )
+                color = theme.stage_inactive
+            label.configure(foreground=color)
+            icon_label.configure(image=self._icon(icon_names[index], color))
 
     def _set_status(self, message: str, *, kind: str = "neutral") -> None:
         self.status_kind = kind
         theme = self.theme
         colors = {
             "neutral": (theme.status_bg, theme.muted),
+            "warning": (theme.accent_soft, theme.primary),
             "success": (theme.success_bg, theme.success),
             "error": (theme.error_bg, theme.error),
         }
         background, foreground = colors[kind]
+        icon_names = {
+            "neutral": "info",
+            "warning": "warning",
+            "success": "check",
+            "error": "warning",
+        }
         self.status_var.set(message)
         self.status_panel.configure(background=background)
+        self.status_icon.configure(
+            image=self._icon(icon_names[kind], foreground),
+            background=background,
+        )
         self.status_label.configure(background=background, foreground=foreground)
         self.result_actions.configure(background=background)
 
@@ -765,6 +974,8 @@ class PdfToEpubApp:
         active_stage = self.active_stage
         self.ui_root.destroy()
         self.stage_labels.clear()
+        self.stage_icon_labels.clear()
+        self.icon_images.clear()
         self.root.configure(background=self.theme.background)
         self._configure_styles()
         self._build_ui()
