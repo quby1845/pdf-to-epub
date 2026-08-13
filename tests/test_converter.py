@@ -11,6 +11,7 @@ from pdf_to_epub.converter import (
     BookMetadata,
     ConversionError,
     ConversionOptions,
+    ConversionProgress,
     _pandoc_command,
     check_runtime,
     convert_pdf,
@@ -168,6 +169,18 @@ def test_conversion_forwards_options_and_cleans_successful_workdir(
 
     def transform_markdown(**kwargs: object) -> None:
         calls.update(kwargs)
+        on_ocr_event = kwargs["on_ocr_event"]
+        assert callable(on_ocr_event)
+        on_ocr_event(
+            types.SimpleNamespace(
+                kind=types.SimpleNamespace(name="START"), page_index=2, total_pages=10
+            )
+        )
+        on_ocr_event(
+            types.SimpleNamespace(
+                kind=types.SimpleNamespace(name="COMPLETE"), page_index=2, total_pages=10
+            )
+        )
         Path(str(kwargs["markdown_path"])).write_text("hy-\nphen", encoding="utf-8")
 
     fake_module = types.SimpleNamespace(
@@ -185,7 +198,7 @@ def test_conversion_forwards_options_and_cleans_successful_workdir(
         epub_path.write_bytes(b"epub")
 
     monkeypatch.setattr("pdf_to_epub.converter.create_epub", fake_create)
-    progress: list[str] = []
+    progress: list[ConversionProgress] = []
     result = convert_pdf(options(tmp_path, ocr_size="base", dpi=144), progress.append)
 
     assert result.epub_path.read_bytes() == b"epub"
@@ -193,7 +206,20 @@ def test_conversion_forwards_options_and_cleans_successful_workdir(
     assert not result.work_dir.exists()
     assert calls["ocr_size"] == "base"
     assert calls["dpi"] == 144
-    assert len(progress) == 4
+    assert len(progress) == 6
+    assert progress[2] == ConversionProgress(
+        "Reading PDF page", "ocr", current_page=2, total_pages=10, completed_pages=1
+    )
+    assert progress[2].percentage == 10
+    assert progress[3].message == "Completed PDF page"
+    assert progress[3].percentage == 20
+
+
+def test_conversion_progress_percentage_handles_unknown_and_bounds() -> None:
+    assert ConversionProgress("Preparing", "models").percentage is None
+    assert ConversionProgress("Reading", "ocr", 1, 0, 0).percentage is None
+    assert ConversionProgress("Reading", "ocr", 1, 10, -1).percentage == 0
+    assert ConversionProgress("Done", "ocr", 10, 10, 12).percentage == 100
 
 
 def test_conversion_keeps_intermediates_and_wraps_upstream_error(

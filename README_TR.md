@@ -42,7 +42,8 @@ sürebilir; masaüstüne ve Başlat menüsüne **PDF to EPUB OCR** kısayolu ekl
 5. **EPUB'a Dönüştür** düğmesine basın.
 
 İlk dönüşümde OCR modeli indirileceği için ilerleme bir süre aynı yerde görünebilir. Program
-bittiğinde EPUB varsayılan olarak PDF'nin bulunduğu klasöre kaydedilir.
+bittiğinde EPUB varsayılan olarak PDF'nin bulunduğu klasöre kaydedilir. Sayfa okuma başlayınca
+program toplam sayfa sayısını, o anda okunan sayfayı ve tamamlanma yüzdesini canlı gösterir.
 
 Program PDF'de satır sonunda bölünmüş `bit-miş` gibi Türkçe kelimeleri EPUB oluşturulurken
 otomatik olarak birleştirir. Gerçek tireli `e-posta` benzeri sözcükleri korumaya çalışır; OCR

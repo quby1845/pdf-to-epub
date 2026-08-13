@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 from pdf_to_epub import cli
-from pdf_to_epub.converter import ConversionError, ConversionResult
+from pdf_to_epub.converter import ConversionError, ConversionProgress, ConversionResult
 
 
 def test_noninteractive_cli_builds_expected_options(
@@ -75,3 +75,8 @@ def test_interactive_metadata_uses_defaults(
     assert metadata.author == "Unknown"
     assert metadata.publisher == "Publisher"
     assert metadata.language == "tr"
+
+
+def test_cli_prints_page_progress(capsys: pytest.CaptureFixture[str]) -> None:
+    cli._progress(ConversionProgress("Reading PDF page", "ocr", 84, 327, 83))
+    assert "Page 84/327 (25%)" in capsys.readouterr().out

@@ -7,6 +7,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-13
+
+### Added
+
+- Display the real current page, total PDF page count, and completion percentage while OCR is
+  running in both the desktop app and CLI.
+- Switch the desktop progress bar from an activity indicator to measured page progress as soon
+  as the OCR engine reports its first page event.
+
 ## [0.2.1] - 2026-08-13
 
 ### Fixed
@@ -80,7 +89,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.2...v0.2.0
 [0.1.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.1...v0.1.2
