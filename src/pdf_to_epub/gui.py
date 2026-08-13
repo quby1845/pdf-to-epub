@@ -535,9 +535,7 @@ class PdfToEpubApp:
             icon="folder",
         ).pack(side="left", padx=(12, 0))
 
-        ttk.Entry(card, textvariable=self.pdf_var, style="App.TEntry").pack(
-            fill="x", pady=(10, 0)
-        )
+        ttk.Entry(card, textvariable=self.pdf_var, style="App.TEntry").pack(fill="x", pady=(10, 0))
 
     def _build_details_card(self, parent: tk.Widget) -> None:
         theme = self.theme
@@ -613,9 +611,7 @@ class PdfToEpubApp:
             self._choose_output,
             padx=16,
             icon="folder",
-        ).pack(
-            side="left", padx=(12, 0)
-        )
+        ).pack(side="left", padx=(12, 0))
 
     def _field(
         self,
@@ -805,9 +801,7 @@ class PdfToEpubApp:
         self.pdf_var.set(str(pdf_path))
         size_mb = pdf_path.stat().st_size / (1024 * 1024)
         self.selected_file_var.set(pdf_path.name)
-        self.selected_file_detail_var.set(
-            f"PDF • {size_mb:.1f} MB • {pdf_path.parent}"
-        )
+        self.selected_file_detail_var.set(f"PDF • {size_mb:.1f} MB • {pdf_path.parent}")
         self.title_var.set(pdf_path.stem)
         self.output_var.set(str(default_epub_path(pdf_path, pdf_path.stem, self.author_var.get())))
         self._set_status("PDF hazır. Kitap bilgilerini kontrol edip dönüştürmeyi başlatın.")
