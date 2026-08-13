@@ -71,3 +71,11 @@ jobs:
       - run: python -m pip install --no-deps .
       - run: python -c "import tkinter; import pdf_to_epub.gui"
       - run: Get-Command pdf-to-epub-gui
+
+  docker:
+    name: Docker configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker build --target syntax-check .

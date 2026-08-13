@@ -7,6 +7,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-08-14
+
+### Added
+
+- Add an optional NVIDIA GPU Docker workflow with a CUDA 12.6 runtime, CUDA-enabled PyTorch,
+  Pandoc, Poppler, persistent OCR model storage, and host-mounted input/output directories.
+- Document guided and non-interactive Docker Compose usage in English and Turkish.
+- Validate Docker Compose and Dockerfile syntax in CI and cover the container contract with tests.
+
 ## [0.5.0] - 2026-08-13
 
 ### Added
@@ -110,7 +119,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.2.1...v0.3.0
