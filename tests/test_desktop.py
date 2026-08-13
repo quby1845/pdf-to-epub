@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from pdf_to_epub.converter import ConversionProgress
 from pdf_to_epub.desktop import (
     DEFAULT_MODEL_LABEL,
     build_conversion_options,
@@ -95,3 +96,12 @@ def test_desktop_model_guidance_and_progress_stages() -> None:
     assert progress_stage("Converting PDF to Markdown with OCR") == 1
     assert progress_stage("Building EPUB with Pandoc") == 2
     assert progress_stage("Future stage") == 0
+
+
+def test_desktop_formats_live_page_progress() -> None:
+    reading = ConversionProgress("Reading PDF page", "ocr", 84, 327, 83)
+    completed = ConversionProgress("Completed PDF page", "ocr", 84, 327, 84)
+
+    assert friendly_progress(reading) == "327 sayfanın 84. sayfası okunuyor (%25)"
+    assert friendly_progress(completed) == "84 / 327 sayfa tamamlandı (%26)"
+    assert progress_stage(reading) == 1

@@ -13,6 +13,7 @@ from platformdirs import user_cache_path
 from pdf_to_epub.converter import (
     BookMetadata,
     ConversionOptions,
+    ConversionProgress,
     bundled_css_path,
     suggested_output_name,
 )
@@ -88,13 +89,30 @@ def build_conversion_options(
     )
 
 
-def friendly_progress(message: str) -> str:
+def friendly_progress(progress: ConversionProgress | str) -> str:
     """Translate known pipeline stages while preserving future messages."""
+    if isinstance(progress, ConversionProgress):
+        if progress.current_page is not None and progress.total_pages is not None:
+            percentage = progress.percentage or 0
+            if progress.message == "Reading PDF page":
+                return (
+                    f"{progress.total_pages} sayfanın {progress.current_page}. sayfası okunuyor "
+                    f"(%{percentage})"
+                )
+            return (
+                f"{progress.current_page} / {progress.total_pages} sayfa tamamlandı (%{percentage})"
+            )
+        message = progress.message
+    else:
+        message = progress
     return _PROGRESS_TRANSLATIONS.get(message, message)
 
 
-def progress_stage(message: str) -> int:
+def progress_stage(progress: ConversionProgress | str) -> int:
     """Map a pipeline message to the three-stage desktop progress indicator."""
+    if isinstance(progress, ConversionProgress):
+        return {"models": 0, "ocr": 1, "cleanup": 2, "epub": 2}[progress.stage]
+    message = progress
     stages = {
         "Checking and downloading OCR models": 0,
         "Converting PDF to Markdown with OCR": 1,

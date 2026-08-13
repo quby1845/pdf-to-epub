@@ -13,7 +13,13 @@ from dataclasses import replace
 from pathlib import Path
 from tkinter import filedialog, messagebox, ttk
 
-from pdf_to_epub.converter import ConversionOptions, ConversionResult, check_runtime, convert_pdf
+from pdf_to_epub.converter import (
+    ConversionOptions,
+    ConversionProgress,
+    ConversionResult,
+    check_runtime,
+    convert_pdf,
+)
 from pdf_to_epub.desktop import (
     DEFAULT_MODEL_LABEL,
     MODEL_LABELS,
@@ -516,6 +522,7 @@ class PdfToEpubApp:
 
         self._hide_result_actions()
         self.convert_button.configure(state="disabled", text="Dönüştürülüyor…", cursor="arrow")
+        self.progress.configure(mode="indeterminate", maximum=100, value=0)
         self.progress.start(12)
         self._set_stage(0)
         self._set_status("Sistem gereksinimleri kontrol ediliyor…")
@@ -525,12 +532,10 @@ class PdfToEpubApp:
         try:
             warning = check_runtime()
             if warning:
-                self.events.put(("progress", (friendly_error(RuntimeError(warning)), 0)))
+                self.events.put(("warning", friendly_error(RuntimeError(warning))))
             result = convert_pdf(
                 options,
-                progress=lambda message: self.events.put(
-                    ("progress", (friendly_progress(message), progress_stage(message)))
-                ),
+                progress=lambda progress: self.events.put(("progress", progress)),
             )
             self.events.put(("success", result))
         except Exception as error:
@@ -541,9 +546,9 @@ class PdfToEpubApp:
             while True:
                 kind, payload = self.events.get_nowait()
                 if kind == "progress":
-                    message, stage = payload  # type: ignore[misc]
-                    self._set_status(str(message))
-                    self._set_stage(int(stage))
+                    self._apply_progress(payload)  # type: ignore[arg-type]
+                elif kind == "warning":
+                    self._set_status(f"Uyarı: {payload}")
                 elif kind == "success":
                     self._finish_success(payload)  # type: ignore[arg-type]
                 elif kind == "error":
@@ -552,8 +557,20 @@ class PdfToEpubApp:
             pass
         self.root.after(100, self._poll_events)
 
+    def _apply_progress(self, progress: ConversionProgress) -> None:
+        self._set_status(friendly_progress(progress))
+        self._set_stage(progress_stage(progress))
+        if progress.total_pages is not None and progress.completed_pages is not None:
+            self.progress.stop()
+            self.progress.configure(
+                mode="determinate",
+                maximum=progress.total_pages,
+                value=progress.completed_pages,
+            )
+
     def _finish_success(self, result: ConversionResult) -> None:
         self.progress.stop()
+        self.progress.configure(mode="determinate", maximum=100, value=100)
         self.convert_button.configure(state="normal", text="EPUB'a dönüştür", cursor="hand2")
         self.last_output = Path(result.epub_path)
         self._set_stage(3)

@@ -13,6 +13,7 @@ from pdf_to_epub.converter import (
     BookMetadata,
     ConversionError,
     ConversionOptions,
+    ConversionProgress,
     bundled_css_path,
     check_runtime,
     convert_pdf,
@@ -89,8 +90,12 @@ def _interactive_metadata(pdf_path: Path, args: argparse.Namespace) -> BookMetad
     return BookMetadata(title=title, author=author, publisher=publisher, language=language)
 
 
-def _progress(message: str) -> None:
-    print(f"[+] {message}...")
+def _progress(progress: ConversionProgress) -> None:
+    if progress.current_page is not None and progress.total_pages is not None:
+        percentage = progress.percentage or 0
+        print(f"[+] Page {progress.current_page}/{progress.total_pages} ({percentage}%)")
+    else:
+        print(f"[+] {progress.message}...")
 
 
 def main(argv: list[str] | None = None) -> int:

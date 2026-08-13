@@ -10,6 +10,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal, Protocol
 
 _LETTER = r"[^\W\d_]"
 _VISIBLE_HYPHENS = r"\-\u2010\u2011"
@@ -115,6 +116,32 @@ class ConversionResult:
     elapsed_seconds: float
     hyphenation_fixes: int
     intermediates_kept: bool
+
+
+ProgressStage = Literal["models", "ocr", "cleanup", "epub"]
+
+
+@dataclass(frozen=True)
+class ConversionProgress:
+    """Structured conversion status suitable for a CLI or desktop progress bar."""
+
+    message: str
+    stage: ProgressStage
+    current_page: int | None = None
+    total_pages: int | None = None
+    completed_pages: int | None = None
+
+    @property
+    def percentage(self) -> int | None:
+        if not self.total_pages or self.completed_pages is None:
+            return None
+        return min(100, max(0, round(self.completed_pages * 100 / self.total_pages)))
+
+
+class _OCREventLike(Protocol):
+    kind: object
+    page_index: int
+    total_pages: int
 
 
 def bundled_css_path() -> Path:
@@ -275,11 +302,11 @@ def create_epub(
 
 def convert_pdf(
     options: ConversionOptions,
-    progress: Callable[[str], None] | None = None,
+    progress: Callable[[ConversionProgress], None] | None = None,
 ) -> ConversionResult:
     """Run pdf-craft OCR, repair Markdown, and package the result as EPUB."""
     validate_options(options)
-    report = progress or (lambda _message: None)
+    report = progress or (lambda _progress: None)
     options.epub_path.parent.mkdir(parents=True, exist_ok=True)
     options.models_dir.mkdir(parents=True, exist_ok=True)
     if options.work_parent is not None:
@@ -296,11 +323,29 @@ def convert_pdf(
     start = time.monotonic()
 
     try:
-        report("Checking and downloading OCR models")
+        report(ConversionProgress("Checking and downloading OCR models", "models"))
         from pdf_craft import predownload_models, transform_markdown
 
         predownload_models(models_cache_path=str(options.models_dir))
-        report("Converting PDF to Markdown with OCR")
+        report(ConversionProgress("Converting PDF to Markdown with OCR", "ocr"))
+
+        def on_ocr_event(event: _OCREventLike) -> None:
+            kind = getattr(getattr(event, "kind", None), "name", "")
+            if kind not in {"START", "COMPLETE", "FAILED", "SKIP", "IGNORE"}:
+                return
+            current_page = event.page_index
+            total_pages = event.total_pages
+            page_finished = kind != "START"
+            report(
+                ConversionProgress(
+                    message="Completed PDF page" if page_finished else "Reading PDF page",
+                    stage="ocr",
+                    current_page=current_page,
+                    total_pages=total_pages,
+                    completed_pages=current_page if page_finished else max(0, current_page - 1),
+                )
+            )
+
         transform_markdown(
             pdf_path=str(options.pdf_path),
             markdown_path=str(markdown_path),
@@ -309,11 +354,12 @@ def convert_pdf(
             ocr_size=options.ocr_size,
             models_cache_path=str(options.models_dir),
             dpi=options.dpi,
+            on_ocr_event=on_ocr_event,
         )
 
-        report("Repairing line-end hyphenation")
+        report(ConversionProgress("Repairing line-end hyphenation", "cleanup"))
         fixes = fix_hyphenation_file(markdown_path, language=options.metadata.language)
-        report("Building EPUB with Pandoc")
+        report(ConversionProgress("Building EPUB with Pandoc", "epub"))
         create_epub(markdown_path, options.epub_path, options.metadata, options.css_path)
         return ConversionResult(
             epub_path=options.epub_path,
