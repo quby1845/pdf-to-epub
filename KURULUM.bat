@@ -1,28 +1,52 @@
 @echo off
-chcp 65001 >nul
-setlocal
+setlocal EnableExtensions
 cd /d "%~dp0"
 
-title PDF to EPUB OCR - Kurulum
+if /I "%~1"=="--self-test" goto self_test
+
+set "POWERSHELL=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
+if not exist "%POWERSHELL%" goto powershell_missing
+
+title PDF to EPUB OCR - Setup
 echo.
 echo ========================================
 echo   PDF to EPUB OCR - Kolay Kurulum
 echo ========================================
 echo.
-echo Bu işlem gerekli programları ve OCR bileşenlerini kurar.
-echo İlk kurulum internet hızına göre 10-30 dakika sürebilir.
+echo Gerekli programlar ve OCR bilesenleri kurulacak.
+echo Ilk kurulum internet hizina gore 10-30 dakika surebilir.
 echo.
 
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup.ps1"
-if errorlevel 1 (
-    echo.
-    echo [HATA] Kurulum tamamlanamadı. Yukarıdaki mesajı ekran görüntüsüyle paylaşabilirsiniz.
-    pause
-    exit /b 1
-)
+"%POWERSHELL%" -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup.ps1"
+set "SETUP_RESULT=%errorlevel%"
+if not "%SETUP_RESULT%"=="0" goto setup_failed
+if not exist "%~dp0.venv\Scripts\pdf-to-epub-gui.exe" goto launcher_missing
 
 echo.
-echo Kurulum tamamlandı. Uygulama şimdi açılıyor...
+echo Kurulum tamamlandi. Uygulama aciliyor...
 timeout /t 2 /nobreak >nul
 call "%~dp0PDF-TO-EPUB.bat"
 exit /b %errorlevel%
+
+:powershell_missing
+echo.
+echo [HATA] Windows PowerShell bulunamadi.
+pause
+exit /b 1
+
+:setup_failed
+echo.
+echo [HATA] Kurulum tamamlanamadi. Yukaridaki son hata mesajinin ekran goruntusunu paylasin.
+pause
+exit /b %SETUP_RESULT%
+
+:launcher_missing
+echo.
+echo [HATA] Kurulum tamamlandi ancak uygulama baslaticisi olusmadi.
+echo KURULUM.bat dosyasini yeniden calistirin.
+pause
+exit /b 1
+
+:self_test
+echo PDF_TO_EPUB_INSTALLER_OK
+exit /b 0

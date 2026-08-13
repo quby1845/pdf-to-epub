@@ -15,6 +15,14 @@ def normalize_batch_line_endings(data: bytes) -> bytes:
     return normalized.replace(b"\n", b"\r\n")
 
 
+def require_ascii_windows_script(data: bytes, relative_path: Path) -> None:
+    """Reject text that legacy Windows command hosts can misparse."""
+    try:
+        data.decode("ascii")
+    except UnicodeDecodeError as error:
+        raise ValueError(f"Windows launcher must contain ASCII only: {relative_path}") from error
+
+
 def tracked_files(repo_root: Path) -> list[Path]:
     """Return paths tracked by Git, relative to the repository root."""
     result = subprocess.run(
@@ -41,6 +49,8 @@ def create_windows_bundle(
         for relative_path in selected_files:
             source_path = repo_root / relative_path
             data = source_path.read_bytes()
+            if source_path.suffix.lower() in {".bat", ".ps1"}:
+                require_ascii_windows_script(data, relative_path)
             if source_path.suffix.lower() == ".bat":
                 data = normalize_batch_line_endings(data)
                 if b"\n" in data.replace(b"\r\n", b""):

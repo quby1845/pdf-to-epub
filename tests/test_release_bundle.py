@@ -3,13 +3,25 @@ from __future__ import annotations
 from pathlib import Path
 from zipfile import ZipFile
 
-from scripts.build_windows_bundle import create_windows_bundle, normalize_batch_line_endings
+import pytest
+
+from scripts.build_windows_bundle import (
+    create_windows_bundle,
+    normalize_batch_line_endings,
+    require_ascii_windows_script,
+)
 
 
 def test_normalize_batch_line_endings_handles_mixed_input() -> None:
     assert normalize_batch_line_endings(b"one\ntwo\r\nthree\rfour") == (
         b"one\r\ntwo\r\nthree\r\nfour"
     )
+
+
+@pytest.mark.parametrize("filename", ["KURULUM.bat", "setup.ps1"])
+def test_windows_scripts_reject_non_ascii_text(filename: str) -> None:
+    with pytest.raises(ValueError, match="ASCII only"):
+        require_ascii_windows_script("Türkçe".encode(), Path(filename))
 
 
 def test_windows_bundle_contains_cmd_compatible_launchers(tmp_path: Path) -> None:
@@ -29,3 +41,10 @@ def test_windows_bundle_contains_cmd_compatible_launchers(tmp_path: Path) -> Non
         batch_data = archive.read("pdf-to-epub-ocr/KURULUM.bat")
         assert batch_data == b"@echo off\r\necho ready\r\n"
         assert archive.read("pdf-to-epub-ocr/README.md") == b"hello\n"
+
+
+@pytest.mark.parametrize(
+    "filename", ["KURULUM.bat", "PDF-TO-EPUB.bat", "start.bat", "setup.ps1", "launch.ps1"]
+)
+def test_repository_windows_launchers_are_ascii(filename: str) -> None:
+    Path(filename).read_bytes().decode("ascii")
