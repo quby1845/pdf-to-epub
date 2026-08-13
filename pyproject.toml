@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling>=1.27,<1.32", "editables>=0.5,<1"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pdf-to-epub-ocr"
+version = "0.1.0"
+description = "Convert scanned PDF books into reflowable EPUB files with local OCR."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = "MIT"
+authors = [{ name = "quby1845" }]
+keywords = ["ebook", "epub", "ocr", "pdf", "pdf-craft"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: End Users/Desktop",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: Microsoft :: Windows",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Text Processing :: Markup",
+  "Topic :: Utilities",
+]
+dependencies = [
+  "pdf-craft>=1.0.13,<2",
+  "platformdirs>=4.3,<5",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2.2,<2",
+  "pytest>=8.3,<9",
+  "pytest-cov>=6,<8",
+  "ruff>=0.11,<1",
+  "twine>=6.1,<7",
+]
+
+[project.scripts]
+pdf-to-epub-ocr = "pdf_to_epub.cli:main"
+
+[project.gui-scripts]
+pdf-to-epub-gui = "pdf_to_epub.gui:main"
+
+[project.urls]
+Homepage = "https://github.com/quby1845/pdf-to-epub"
+Repository = "https://github.com/quby1845/pdf-to-epub"
+Issues = "https://github.com/quby1845/pdf-to-epub/issues"
+Changelog = "https://github.com/quby1845/pdf-to-epub/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pdf_to_epub"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src",
+  "/tests",
+  "/CHANGELOG.md",
+  "/CONTRIBUTING.md",
+  "/LICENSE",
+  "/MAINTAINERS.md",
+  "/README.md",
+  "/README_TR.md",
+  "/SECURITY.md",
+  "/KURULUM.bat",
+  "/PDF-TO-EPUB.bat",
+  "/launch.ps1",
+  "/setup.ps1",
+  "/start.bat",
+  "/pyproject.toml",
+]
+
+[tool.pytest.ini_options]
+addopts = "--cov=pdf_to_epub --cov-report=term-missing --cov-fail-under=85"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["pdf_to_epub"]
+omit = ["src/pdf_to_epub/gui.py"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

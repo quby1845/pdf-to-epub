@@ -1,0 +1,29 @@
+name: Feature request
+description: Propose a focused improvement to the supported workflow.
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues and did not find this request.
+          required: true
+  - type: textarea
+    attributes:
+      label: Problem
+      description: What user problem or maintenance burden should be solved?
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Proposed solution
+      description: Explain the desired behavior, including CLI examples where useful.
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Alternatives and tradeoffs
+      description: What other approaches did you consider?
+    validations:
+      required: true

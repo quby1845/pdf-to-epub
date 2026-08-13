@@ -1,36 +1,38 @@
-# Python
+# Python bytecode and tooling
 __pycache__/
 *.py[cod]
-*.pyo
-*.pyd
-*.pyc
-.Python
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.mypy_cache/
 
-# Sanal ortam
+# Virtual environments
+.venv/
 venv/
 env/
-.venv/
 
-# AI Modelleri (çok büyük, git'e dahil etme)
-models/
+# Packaging output
+build/
+dist/
+*.egg-info/
 
-# Kullanıcı dosyaları
+# Runtime data and user documents
 input/
 output/
 temp/
+models/
+*-work/
+*.epub
 
-# Ollama post-processor (ayrı proje)
+# Local extensions and logs
 polish.py
+*.log
 
-# IDE
+# Editors and operating systems
 .vscode/
 .idea/
 *.swp
-
-# OS
 .DS_Store
 Thumbs.db
 desktop.ini
-
-# Log dosyaları
-*.log
