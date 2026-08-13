@@ -57,6 +57,26 @@ def test_fix_hyphenation_only_merges_lowercase_continuations(tmp_path: Path) -> 
     assert markdown.read_text(encoding="utf-8") == "hello"
 
 
+def test_fix_hyphenation_repairs_turkish_ocr_hyphens_without_breaking_compounds() -> None:
+    text = (
+        "olup bit-miş bir şeyleri, çalış‐mıştı ve kitap‑ların arasında; "
+        "e-posta, sosyo-ekonomik, yavaş-yavaş ve Türk-Alman ilişkileri"
+    )
+    fixed, count = fix_hyphenation(text, language="tr")
+
+    assert fixed == (
+        "olup bitmiş bir şeyleri, çalışmıştı ve kitapların arasında; "
+        "e-posta, sosyo-ekonomik, yavaş-yavaş ve Türk-Alman ilişkileri"
+    )
+    assert count == 3
+
+
+def test_fix_hyphenation_handles_soft_and_unicode_line_break_hyphens() -> None:
+    fixed, count = fix_hyphenation("gösteri\u00adlen ve popü‐\nler ama ISO‑\nStandard", "tr")
+    assert fixed == "gösterilen ve popüler ama ISO‑\nStandard"
+    assert count == 2
+
+
 def test_fix_hyphenation_file_requires_generated_markdown(tmp_path: Path) -> None:
     with pytest.raises(ConversionError, match="Markdown was not found"):
         fix_hyphenation_file(tmp_path / "missing.md")

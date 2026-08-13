@@ -11,6 +11,76 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+_LETTER = r"[^\W\d_]"
+_VISIBLE_HYPHENS = r"\-\u2010\u2011"
+_TURKISH_INLINE_SUFFIX_STARTS = (
+    "acak",
+    "acağı",
+    "ecek",
+    "eceği",
+    "dık",
+    "dik",
+    "duk",
+    "dük",
+    "tık",
+    "tik",
+    "tuk",
+    "tük",
+    "mış",
+    "miş",
+    "muş",
+    "müş",
+    "ıyor",
+    "iyor",
+    "uyor",
+    "üyor",
+    "makt",
+    "mekt",
+    "lığ",
+    "liğ",
+    "luğ",
+    "lüğ",
+    "lar",
+    "ler",
+    "sız",
+    "siz",
+    "suz",
+    "süz",
+)
+_TURKISH_EXACT_SUFFIX_FRAGMENTS = frozenset(
+    {
+        "lar",
+        "ler",
+        "lık",
+        "lik",
+        "luk",
+        "lük",
+        "dan",
+        "den",
+        "tan",
+        "ten",
+        "dır",
+        "dir",
+        "dur",
+        "dür",
+        "tır",
+        "tir",
+        "tur",
+        "tür",
+        "mak",
+        "mek",
+        "ken",
+        "ınca",
+        "ince",
+        "unca",
+        "ünce",
+        "ıp",
+        "ip",
+        "up",
+        "üp",
+    }
+)
+
 
 class ConversionError(RuntimeError):
     """Raised when input validation or an external conversion step fails."""
@@ -66,15 +136,22 @@ def suggested_output_name(metadata: BookMetadata) -> str:
     return f"{title}.epub"
 
 
-def fix_hyphenation(text: str) -> tuple[str, int]:
-    """Merge common OCR line-wrap hyphens when the continuation is lowercase."""
+def _looks_like_turkish_suffix(fragment: str) -> bool:
+    normalized = fragment.casefold()
+    return normalized in _TURKISH_EXACT_SUFFIX_FRAGMENTS or normalized.startswith(
+        _TURKISH_INLINE_SUFFIX_STARTS
+    )
+
+
+def fix_hyphenation(text: str, language: str = "en") -> tuple[str, int]:
+    """Merge OCR line-wrap hyphens while preserving intentional compounds."""
     corrections = 0
 
     def replace_line_break(match: re.Match[str]) -> str:
         nonlocal corrections
-        if match.group(3).islower():
+        if match.group(2).islower():
             corrections += 1
-            return match.group(1) + match.group(3)
+            return match.group(1) + match.group(2)
         return match.group(0)
 
     def replace_inline_break(match: re.Match[str]) -> str:
@@ -84,16 +161,39 @@ def fix_hyphenation(text: str) -> tuple[str, int]:
             return match.group(1) + match.group(2)
         return match.group(0)
 
-    fixed = re.sub(r"(\w)-\n(\s*)(\w)", replace_line_break, text)
-    fixed = re.sub(r"(\w)- (\w)", replace_inline_break, fixed)
+    def replace_turkish_inline_break(match: re.Match[str]) -> str:
+        nonlocal corrections
+        left, right = match.group(1), match.group(2)
+        if right.islower() and _looks_like_turkish_suffix(right):
+            corrections += 1
+            return left + right
+        return match.group(0)
+
+    soft_hyphen_pattern = rf"(?<={_LETTER})\u00ad(?={_LETTER})"
+    fixed, soft_hyphen_count = re.subn(soft_hyphen_pattern, "", text)
+    corrections += soft_hyphen_count
+
+    line_break_pattern = rf"({_LETTER})[{_VISIBLE_HYPHENS}][ \t]*\n\s*({_LETTER})"
+    fixed = re.sub(line_break_pattern, replace_line_break, fixed)
+
+    spaced_break_pattern = rf"({_LETTER})[{_VISIBLE_HYPHENS}][ \t]+({_LETTER})"
+    fixed = re.sub(spaced_break_pattern, replace_inline_break, fixed)
+
+    if language.casefold().split("-", maxsplit=1)[0] == "tr":
+        inline_word_pattern = (
+            rf"(?<![\w{_VISIBLE_HYPHENS}])"
+            rf"({_LETTER}{{2,}})[{_VISIBLE_HYPHENS}]({_LETTER}{{2,}})"
+            rf"(?![\w{_VISIBLE_HYPHENS}])"
+        )
+        fixed = re.sub(inline_word_pattern, replace_turkish_inline_break, fixed)
     return fixed, corrections
 
 
-def fix_hyphenation_file(markdown_path: Path) -> int:
+def fix_hyphenation_file(markdown_path: Path, language: str = "en") -> int:
     if not markdown_path.is_file():
         raise ConversionError(f"Generated Markdown was not found: {markdown_path}")
     original = markdown_path.read_text(encoding="utf-8")
-    fixed, count = fix_hyphenation(original)
+    fixed, count = fix_hyphenation(original, language=language)
     markdown_path.write_text(fixed, encoding="utf-8")
     return count
 
@@ -212,7 +312,7 @@ def convert_pdf(
         )
 
         report("Repairing line-end hyphenation")
-        fixes = fix_hyphenation_file(markdown_path)
+        fixes = fix_hyphenation_file(markdown_path, language=options.metadata.language)
         report("Building EPUB with Pandoc")
         create_epub(markdown_path, options.epub_path, options.metadata, options.css_path)
         return ConversionResult(
