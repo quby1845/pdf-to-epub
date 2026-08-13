@@ -1,11 +1,21 @@
 # Refresh PATH after winget installations, then launch the windowed entry point.
+# This file intentionally uses ASCII text for Windows PowerShell 5.1 compatibility.
+
+param([switch] $SelfTest)
+
 $ErrorActionPreference = "Stop"
+
+if ($SelfTest) {
+    Write-Output "PDF_TO_EPUB_LAUNCH_SCRIPT_OK"
+    exit 0
+}
+
 $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 $env:Path = "$machinePath;$userPath"
 
 $launcher = Join-Path $PSScriptRoot ".venv\Scripts\pdf-to-epub-gui.exe"
 if (-not (Test-Path $launcher)) {
-    throw "Uygulama bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
+    throw "Uygulama bulunamadi. KURULUM.bat dosyasini yeniden calistirin."
 }
 Start-Process -FilePath $launcher -WorkingDirectory $PSScriptRoot

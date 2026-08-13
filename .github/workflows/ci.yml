@@ -49,6 +49,20 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Smoke test cmd.exe launchers
+        shell: cmd
+        run: |
+          call KURULUM.bat --self-test > installer-self-test.txt
+          findstr /x "PDF_TO_EPUB_INSTALLER_OK" installer-self-test.txt
+          call PDF-TO-EPUB.bat --self-test > launcher-self-test.txt
+          findstr /x "PDF_TO_EPUB_LAUNCHER_OK" launcher-self-test.txt
+      - name: Smoke test Windows PowerShell scripts
+        shell: powershell
+        run: |
+          $setupOutput = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1 -SelfTest
+          if ($setupOutput -ne "PDF_TO_EPUB_SETUP_OK") { throw "setup.ps1 self-test failed: $setupOutput" }
+          $launchOutput = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File .\launch.ps1 -SelfTest
+          if ($launchOutput -ne "PDF_TO_EPUB_LAUNCH_SCRIPT_OK") { throw "launch.ps1 self-test failed: $launchOutput" }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
