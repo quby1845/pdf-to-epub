@@ -11,8 +11,10 @@ from pdf_to_epub.desktop import (
     default_epub_path,
     friendly_error,
     friendly_progress,
+    load_theme_preference,
     model_description,
     progress_stage,
+    save_theme_preference,
 )
 
 
@@ -105,3 +107,15 @@ def test_desktop_formats_live_page_progress() -> None:
     assert friendly_progress(reading) == "327 sayfanın 84. sayfası okunuyor (%25)"
     assert friendly_progress(completed) == "84 / 327 sayfa tamamlandı (%26)"
     assert progress_stage(reading) == 1
+
+
+def test_desktop_theme_preference_round_trip_and_safe_fallback(tmp_path: Path) -> None:
+    settings = tmp_path / "settings" / "theme.txt"
+    assert load_theme_preference(settings) == "light"
+
+    save_theme_preference("dark", settings)
+    assert settings.read_text(encoding="utf-8") == "dark\n"
+    assert load_theme_preference(settings) == "dark"
+
+    settings.write_text("unsupported", encoding="utf-8")
+    assert load_theme_preference(settings) == "light"
