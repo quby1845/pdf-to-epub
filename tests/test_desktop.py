@@ -88,6 +88,8 @@ def test_desktop_messages_are_friendly_and_future_safe() -> None:
     assert "KURULUM.bat" in friendly_error(RuntimeError("Pandoc was not found on PATH"))
     assert "CUDA" in friendly_error(RuntimeError("CUDA is not available"))
     assert "base" in friendly_error(RuntimeError("CUDA out of memory"))
+    assert "16 GB" in friendly_error(RuntimeError("pdf-craft recommends at least 16 GB"))
+    assert "VRAM" in friendly_error(RuntimeError("Failed to extract page 1 layout at stage 1"))
     assert friendly_error(RuntimeError("different failure")) == "different failure"
 
 

@@ -252,8 +252,37 @@ def check_runtime() -> str | None:
         ) from error
 
     if not torch.cuda.is_available():
-        return "CUDA is not available; conversion may be unsupported or extremely slow."
+        raise ConversionError(
+            "CUDA is not available. Local DeepSeek OCR requires a supported NVIDIA GPU "
+            "and a CUDA-enabled PyTorch installation."
+        )
+
+    try:
+        total_vram = torch.cuda.get_device_properties(0).total_memory
+    except (AttributeError, RuntimeError):
+        return None
+    total_vram_gib = total_vram / (1024**3)
+    if total_vram_gib < 16:
+        return (
+            f"The selected NVIDIA GPU has {total_vram_gib:.1f} GB VRAM; pdf-craft "
+            "recommends at least 16 GB. Close other GPU applications and start with "
+            "the tiny or small OCR setting."
+        )
     return None
+
+
+def _exception_chain_message(error: Exception) -> str:
+    """Return useful messages from wrapped upstream exceptions without a traceback."""
+    messages: list[str] = []
+    seen: set[int] = set()
+    current: BaseException | None = error
+    while current is not None and id(current) not in seen and len(messages) < 6:
+        seen.add(id(current))
+        message = str(current).strip()
+        if message and message not in messages:
+            messages.append(message[:1000])
+        current = current.__cause__ or current.__context__
+    return ": ".join(messages) or type(error).__name__
 
 
 def _pandoc_command(
@@ -324,9 +353,12 @@ def convert_pdf(
 
     try:
         report(ConversionProgress("Checking and downloading OCR models", "models"))
-        from pdf_craft import predownload_models, transform_markdown
+        from pdf_craft import transform_markdown
 
-        predownload_models(models_cache_path=str(options.models_dir))
+        # Do not call pdf-craft's predownload_models() here. Its current local backend
+        # deliberately uses force_download=True, which can download the 6.5 GB model again
+        # after every retry. Transformers downloads missing files during the conversion and
+        # reuses the Hugging Face cache on later runs.
         report(ConversionProgress("Converting PDF to Markdown with OCR", "ocr"))
 
         def on_ocr_event(event: _OCREventLike) -> None:
@@ -371,7 +403,7 @@ def convert_pdf(
     except ConversionError:
         raise
     except Exception as error:
-        raise ConversionError(f"Conversion failed: {error}") from error
+        raise ConversionError(f"Conversion failed: {_exception_chain_message(error)}") from error
     finally:
         if not options.keep_intermediates:
             shutil.rmtree(work_dir, ignore_errors=True)

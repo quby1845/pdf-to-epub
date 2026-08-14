@@ -7,6 +7,21 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-08-14
+
+### Fixed
+
+- Stop force-downloading the 6.5 GB DeepSeek OCR model before every conversion attempt; missing
+  model files are now downloaded through the cache-aware Transformers loading path.
+- Preserve nested pdf-craft and CUDA error details instead of showing only the generic
+  `Failed to extract page 1 layout at stage 1` wrapper.
+- Stop before downloading OCR weights when CUDA is unavailable and warn when the detected GPU
+  has less than the upstream-recommended 16 GB of VRAM.
+
+### Changed
+
+- Require pdf-craft 1.0.14 or newer and correct the documented DeepSeek OCR hardware needs.
+
 ## [0.6.1] - 2026-08-14
 
 ### Fixed
@@ -127,7 +142,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.1...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.2...HEAD
+[0.6.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.4.0...v0.5.0
