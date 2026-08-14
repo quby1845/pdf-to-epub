@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import re
 import shutil
 import subprocess
@@ -11,6 +12,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Protocol
+
+from pdf_to_epub.model_cache import configure_huggingface_cache
+
+logger = logging.getLogger(__name__)
+
+_MINIMUM_TOTAL_VRAM_GIB = 7.0
+_MINIMUM_START_VRAM_GIB = 5.5
+_MINIMUM_FREE_VRAM_GIB = 6.5
 
 _LETTER = r"[^\W\d_]"
 _VISIBLE_HYPHENS = r"\-\u2010\u2011"
@@ -258,15 +267,68 @@ def check_runtime() -> str | None:
         )
 
     try:
-        total_vram = torch.cuda.get_device_properties(0).total_memory
-    except (AttributeError, RuntimeError):
+        properties = torch.cuda.get_device_properties(0)
+        total_vram = properties.total_memory
+        gpu_name = getattr(properties, "name", "Unknown NVIDIA GPU")
+        capability = tuple(torch.cuda.get_device_capability(0))
+        free_vram, _ = torch.cuda.mem_get_info(0)
+        arch_list = list(torch.cuda.get_arch_list())
+    except (AttributeError, RuntimeError, TypeError):
+        logger.warning("CUDA is available but detailed GPU properties could not be read.")
         return None
+
     total_vram_gib = total_vram / (1024**3)
-    if total_vram_gib < 16:
+    free_vram_gib = free_vram / (1024**3)
+    logger.info(
+        "CUDA runtime: torch=%s cuda=%s gpu=%s capability=%s total_vram=%.1fGiB "
+        "free_vram=%.1fGiB architectures=%s",
+        getattr(torch, "__version__", "unknown"),
+        getattr(getattr(torch, "version", None), "cuda", "unknown"),
+        gpu_name,
+        ".".join(str(item) for item in capability),
+        total_vram_gib,
+        free_vram_gib,
+        ",".join(arch_list),
+    )
+
+    if capability >= (12, 0) and "sm_120" not in arch_list:
+        raise ConversionError(
+            "This RTX 50 / Blackwell GPU needs a PyTorch build with sm_120 support. "
+            "On Windows, run KURULUM.bat again to install the CUDA 13 build. "
+            "Docker and manual installs must select the CUDA 13 PyTorch index."
+        )
+
+    try:
+        probe = torch.ones(1, device="cuda")
+        probe.add_(1)
+        torch.cuda.synchronize()
+    except RuntimeError as error:
+        detail = str(error)
+        if "no kernel image" in detail.lower():
+            raise ConversionError(
+                "The installed PyTorch build cannot run kernels on this NVIDIA GPU. "
+                "On Windows, run KURULUM.bat again so the compatible CUDA build can be "
+                "installed. Docker and manual installs must select a matching PyTorch build."
+            ) from error
+        raise ConversionError(f"CUDA could not run a startup test: {detail}") from error
+
+    if total_vram_gib < _MINIMUM_TOTAL_VRAM_GIB:
+        raise ConversionError(
+            f"The selected NVIDIA GPU ({gpu_name}) has {total_vram_gib:.1f} GB VRAM. "
+            "The current unquantized OCR model does not fit reliably in a 6 GB GPU. "
+            "Tiny and small reduce per-page work but do not shrink the 6.5 GB model."
+        )
+    if free_vram_gib < _MINIMUM_START_VRAM_GIB:
+        raise ConversionError(
+            f"There is not enough free VRAM to load the OCR model ({free_vram_gib:.1f} GB "
+            f"available of {total_vram_gib:.1f} GB). Close browsers, games, and other GPU "
+            "applications before starting again."
+        )
+    if free_vram_gib < _MINIMUM_FREE_VRAM_GIB:
         return (
-            f"The selected NVIDIA GPU has {total_vram_gib:.1f} GB VRAM; pdf-craft "
-            "recommends at least 16 GB. Close other GPU applications and start with "
-            "the tiny or small OCR setting."
+            f"The selected NVIDIA GPU ({gpu_name}) has only {free_vram_gib:.1f} GB of "
+            f"{total_vram_gib:.1f} GB VRAM available. Close browsers, games, and other GPU "
+            "applications before converting. Tiny or small can reduce per-page memory use."
         )
     return None
 
@@ -352,6 +414,17 @@ def convert_pdf(
     start = time.monotonic()
 
     try:
+        copy_cache = configure_huggingface_cache(options.models_dir)
+        logger.info(
+            "Conversion started: pdf=%s output=%s ocr_size=%s dpi=%s models=%s "
+            "windows_copy_cache=%s",
+            options.pdf_path,
+            options.epub_path,
+            options.ocr_size,
+            options.dpi,
+            options.models_dir,
+            copy_cache,
+        )
         report(ConversionProgress("Checking and downloading OCR models", "models"))
         from pdf_craft import transform_markdown
 
@@ -363,18 +436,27 @@ def convert_pdf(
 
         def on_ocr_event(event: _OCREventLike) -> None:
             kind = getattr(getattr(event, "kind", None), "name", "")
-            if kind not in {"START", "COMPLETE", "FAILED", "SKIP", "IGNORE"}:
+            if kind not in {"START", "RENDERED", "COMPLETE", "FAILED", "SKIP", "IGNORE"}:
                 return
             current_page = event.page_index
             total_pages = event.total_pages
-            page_finished = kind != "START"
+            logger.info("OCR event: kind=%s page=%s total=%s", kind, current_page, total_pages)
+            if kind == "START":
+                message = "Rendering PDF page"
+                completed_pages = max(0, current_page - 1)
+            elif kind == "RENDERED":
+                message = "Loading OCR model and processing PDF page"
+                completed_pages = max(0, current_page - 1)
+            else:
+                message = "Completed PDF page"
+                completed_pages = current_page
             report(
                 ConversionProgress(
-                    message="Completed PDF page" if page_finished else "Reading PDF page",
+                    message=message,
                     stage="ocr",
                     current_page=current_page,
                     total_pages=total_pages,
-                    completed_pages=current_page if page_finished else max(0, current_page - 1),
+                    completed_pages=completed_pages,
                 )
             )
 
@@ -401,8 +483,10 @@ def convert_pdf(
             intermediates_kept=options.keep_intermediates,
         )
     except ConversionError:
+        logger.exception("Conversion failed with a known error.")
         raise
     except Exception as error:
+        logger.exception("Conversion failed in the OCR pipeline.")
         raise ConversionError(f"Conversion failed: {_exception_chain_message(error)}") from error
     finally:
         if not options.keep_intermediates:

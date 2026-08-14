@@ -14,7 +14,12 @@ $machinePath = [Environment]::GetEnvironmentVariable("Path", "Machine")
 $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
 $env:Path = "$machinePath;$userPath"
 
-$launcher = Join-Path $PSScriptRoot ".venv\Scripts\pdf-to-epub-gui.exe"
+$installRoot = if ($env:PDF_TO_EPUB_INSTALL_ROOT) {
+    [IO.Path]::GetFullPath($env:PDF_TO_EPUB_INSTALL_ROOT)
+} else {
+    Join-Path $env:LocalAppData "PDF-to-EPUB-OCR"
+}
+$launcher = Join-Path $installRoot "venv\Scripts\pdf-to-epub-gui.exe"
 if (-not (Test-Path $launcher)) {
     throw "Uygulama bulunamadi. KURULUM.bat dosyasini yeniden calistirin."
 }

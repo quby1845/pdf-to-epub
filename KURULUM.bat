@@ -20,7 +20,7 @@ echo.
 "%POWERSHELL%" -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup.ps1"
 set "SETUP_RESULT=%errorlevel%"
 if not "%SETUP_RESULT%"=="0" goto setup_failed
-if not exist "%~dp0.venv\Scripts\pdf-to-epub-gui.exe" goto launcher_missing
+if not exist "%LocalAppData%\PDF-to-EPUB-OCR\venv\Scripts\pdf-to-epub-gui.exe" goto launcher_missing
 
 echo.
 echo Kurulum tamamlandi. Uygulama aciliyor...

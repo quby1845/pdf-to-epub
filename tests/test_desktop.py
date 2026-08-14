@@ -88,7 +88,11 @@ def test_desktop_messages_are_friendly_and_future_safe() -> None:
     assert "KURULUM.bat" in friendly_error(RuntimeError("Pandoc was not found on PATH"))
     assert "CUDA" in friendly_error(RuntimeError("CUDA is not available"))
     assert "base" in friendly_error(RuntimeError("CUDA out of memory"))
-    assert "16 GB" in friendly_error(RuntimeError("pdf-craft recommends at least 16 GB"))
+    assert "6,5 GB" in friendly_error(
+        RuntimeError("The current model does not fit reliably in a 6 GB GPU")
+    )
+    assert "uygulamaları kapatıp" in friendly_error(RuntimeError("There is not enough free VRAM"))
+    assert "KURULUM.bat" in friendly_error(RuntimeError("missing sm_120 support"))
     assert "VRAM" in friendly_error(RuntimeError("Failed to extract page 1 layout at stage 1"))
     assert friendly_error(RuntimeError("different failure")) == "different failure"
 
@@ -103,10 +107,12 @@ def test_desktop_model_guidance_and_progress_stages() -> None:
 
 
 def test_desktop_formats_live_page_progress() -> None:
-    reading = ConversionProgress("Reading PDF page", "ocr", 84, 327, 83)
+    reading = ConversionProgress("Rendering PDF page", "ocr", 84, 327, 83)
+    loading = ConversionProgress("Loading OCR model and processing PDF page", "ocr", 1, 327, 0)
     completed = ConversionProgress("Completed PDF page", "ocr", 84, 327, 84)
 
-    assert friendly_progress(reading) == "327 sayfanın 84. sayfası okunuyor (%25)"
+    assert friendly_progress(reading) == "327 sayfanın 84. sayfası hazırlanıyor (%25)"
+    assert "GPU'ya yükleniyor" in friendly_progress(loading)
     assert friendly_progress(completed) == "84 / 327 sayfa tamamlandı (%26)"
     assert progress_stage(reading) == 1
 
