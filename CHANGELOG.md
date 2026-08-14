@@ -7,6 +7,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-08-14
+
+### Fixed
+
+- Skip nonfunctional Microsoft Store/App Execution Alias `python.exe` commands during Windows
+  setup instead of aborting before Python can be installed with winget.
+- Validate every fallback Python path and cover the broken-alias scenario in Windows CI.
+
 ## [0.6.0] - 2026-08-14
 
 ### Added
@@ -119,7 +127,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.1...HEAD
+[0.6.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.3.0...v0.4.0

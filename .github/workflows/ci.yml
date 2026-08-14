@@ -61,6 +61,8 @@ jobs:
         run: |
           $setupOutput = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1 -SelfTest
           if ($setupOutput -ne "PDF_TO_EPUB_SETUP_OK") { throw "setup.ps1 self-test failed: $setupOutput" }
+          $probeOutput = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File .\setup.ps1 -PythonProbeSelfTest
+          if ($probeOutput -ne "PDF_TO_EPUB_PYTHON_ALIAS_OK") { throw "Python alias probe failed: $probeOutput" }
           $launchOutput = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File .\launch.ps1 -SelfTest
           if ($launchOutput -ne "PDF_TO_EPUB_LAUNCH_SCRIPT_OK") { throw "launch.ps1 self-test failed: $launchOutput" }
       - uses: actions/setup-python@v5
