@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pdf-to-epub-ocr"
-version = "0.6.1"
+version = "0.6.2"
 description = "Convert scanned PDF books into reflowable EPUB files with local OCR."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -26,7 +26,7 @@ classifiers = [
   "Topic :: Utilities",
 ]
 dependencies = [
-  "pdf-craft>=1.0.13,<2",
+  "pdf-craft>=1.0.14,<2",
   "platformdirs>=4.3,<5",
 ]
 

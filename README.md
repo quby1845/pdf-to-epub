@@ -47,13 +47,13 @@ settings. PDF to EPUB OCR provides a reproducible command-line workflow for scan
 | --- | --- |
 | Operating system | Windows 10/11; Linux is community-supported |
 | Python | 3.11, 3.12, or 3.13 |
-| GPU | NVIDIA CUDA GPU; 8 GB VRAM recommended for `gundam` |
+| GPU | NVIDIA CUDA GPU; 16 GB VRAM minimum, 24 GB recommended upstream |
 | Memory | 16 GB RAM recommended |
-| Disk | At least 10 GB free for Python packages and model files |
+| Disk | At least 20 GB free for Python packages and the 6.5 GB OCR model |
 | System tools | Pandoc and Poppler |
 
-CPU execution may be technically possible in parts of the dependency stack, but it is not a
-supported conversion path and can be impractically slow.
+Local DeepSeek OCR requires CUDA and does not support CPU conversion. The OCR quality setting
+changes the page-processing resolution, not the 6.5 GB model download size.
 
 ## Installation
 
@@ -187,8 +187,10 @@ Run `pdf-to-epub-ocr --help` for the complete interface.
 - The final EPUB is written to `output/` unless `-o` is used.
 - Intermediate files are removed after a successful conversion by default.
 - `--keep-intermediates` preserves the Markdown and extracted assets for inspection.
-- Model weights are downloaded by pdf-craft/Hugging Face on first use; the PDF itself remains
-  local. Review upstream dependency policies if your environment has strict network controls.
+- Model weights are downloaded by pdf-craft/Hugging Face on first use and reused from the cache;
+  the PDF itself remains local. The `snapshots` and `blobs` views can show the same cached weight
+  file and should not be manually edited. Review upstream dependency policies if your environment
+  has strict network controls.
 
 ## Known limitations
 
@@ -207,6 +209,7 @@ Run `pdf-to-epub-ocr --help` for the complete interface.
 | `Pandoc was not found` | Install Pandoc, then open a new terminal so `PATH` is refreshed. |
 | Poppler/PDF rendering error | Install Poppler and ensure its `bin` directory is on `PATH`. |
 | CUDA out of memory | Retry with `--ocr-size large` or `--ocr-size base` and close GPU-heavy apps. |
+| `Failed to extract page 1 layout at stage 1` | Install the latest release and report the detailed CUDA error it now displays, plus GPU model and VRAM. |
 | Existing output error | Choose another `-o` path or pass `--overwrite`. |
 
 When reporting a bug, do not upload copyrighted or confidential PDFs. Provide a minimal public

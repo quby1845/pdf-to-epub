@@ -159,7 +159,23 @@ def test_check_runtime_handles_missing_tools_and_cpu(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr("pdf_to_epub.converter.shutil.which", lambda _name: "pandoc")
     fake_torch = types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda: False))
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
-    assert "CUDA is not available" in check_runtime()
+    with pytest.raises(ConversionError, match="CUDA is not available"):
+        check_runtime()
+
+
+def test_check_runtime_warns_when_gpu_has_less_than_16_gib(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("pdf_to_epub.converter.shutil.which", lambda _name: "pandoc")
+    fake_cuda = types.SimpleNamespace(
+        is_available=lambda: True,
+        get_device_properties=lambda _device: types.SimpleNamespace(total_memory=8 * 1024**3),
+    )
+    monkeypatch.setitem(sys.modules, "torch", types.SimpleNamespace(cuda=fake_cuda))
+    warning = check_runtime()
+    assert warning is not None
+    assert "8.0 GB VRAM" in warning
+    assert "tiny or small" in warning
 
 
 def test_conversion_forwards_options_and_cleans_successful_workdir(
@@ -183,10 +199,7 @@ def test_conversion_forwards_options_and_cleans_successful_workdir(
         )
         Path(str(kwargs["markdown_path"])).write_text("hy-\nphen", encoding="utf-8")
 
-    fake_module = types.SimpleNamespace(
-        predownload_models=lambda **kwargs: calls.update(kwargs),
-        transform_markdown=transform_markdown,
-    )
+    fake_module = types.SimpleNamespace(transform_markdown=transform_markdown)
     monkeypatch.setitem(sys.modules, "pdf_craft", fake_module)
 
     def fake_create(
@@ -225,12 +238,14 @@ def test_conversion_progress_percentage_handles_unknown_and_bounds() -> None:
 def test_conversion_keeps_intermediates_and_wraps_upstream_error(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    root_error = RuntimeError("CUDA out of memory")
+    wrapped_error = RuntimeError("Failed to extract page 1 layout at stage 1")
+    wrapped_error.__cause__ = root_error
     fake_module = types.SimpleNamespace(
-        predownload_models=lambda **_kwargs: None,
-        transform_markdown=lambda **_kwargs: (_ for _ in ()).throw(RuntimeError("OCR failed")),
+        transform_markdown=lambda **_kwargs: (_ for _ in ()).throw(wrapped_error),
     )
     monkeypatch.setitem(sys.modules, "pdf_craft", fake_module)
     selected = options(tmp_path, keep_intermediates=True)
-    with pytest.raises(ConversionError, match="OCR failed"):
+    with pytest.raises(ConversionError, match="Failed to extract.*CUDA out of memory"):
         convert_pdf(selected)
     assert any((tmp_path / "work").iterdir())

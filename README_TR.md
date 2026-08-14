@@ -12,12 +12,13 @@ metin API'sine gönderilmez.
 
 - Windows 10 veya Windows 11
 - Python 3.11–3.13 (yoksa kolay kurulum yüklemeyi dener)
-- NVIDIA ekran kartı; `gundam` modeli için 8 GB VRAM önerilir
-- En az 16 GB RAM ve yaklaşık 10 GB boş alan
+- NVIDIA CUDA ekran kartı; en az 16 GB VRAM, tercihen 24 GB
+- En az 16 GB RAM ve yaklaşık 20 GB boş alan
 - İlk kurulum ve ilk model indirmesi için internet bağlantısı
 
-NVIDIA ekran kartınız yoksa dönüşüm çok yavaş olabilir veya hiç çalışmayabilir. Bu sürümde CPU
-ile dönüşüm resmî olarak desteklenmemektedir.
+NVIDIA CUDA ekran kartınız yoksa dönüşüm çalışmaz; kullanılan yerel DeepSeek OCR motoru CPU ile
+dönüşümü desteklememektedir. OCR kalite seçeneği 6,5 GB model indirmesinin boyutunu değil,
+sayfaların işlenme çözünürlüğünü değiştirir.
 
 ## Üç adımda kurulum
 
@@ -116,7 +117,7 @@ sonucu belgeye göre değişebileceği için oluşan EPUB'ı yine de gözden ge�
 | `small` | Düşük ekran kartı belleği; kalite daha düşük olabilir |
 | `base` | Bellek hatası alan bilgisayarlar |
 | `large` | Çoğu kullanıcı için dengeli ve önerilen başlangıç |
-| `gundam` | 8 GB veya daha fazla VRAM ile en yüksek kalite |
+| `gundam` | 24 GB VRAM önerilen en yüksek kalite seçeneği |
 
 ## Sorun yaşarsanız
 
@@ -125,6 +126,7 @@ sonucu belgeye göre değişebileceği için oluşan EPUB'ı yine de gözden ge�
 | Kurulum yarıda kaldı | `KURULUM.bat` dosyasını yeniden çalıştırın |
 | Ekran kartı belleği hatası | Modeli `base` veya `small` seçin; diğer GPU uygulamalarını kapatın |
 | Pandoc/PyTorch bulunamadı | Kurulumu yeniden çalıştırın ve bilgisayarı yeniden başlatın |
+| `Failed to extract page 1 layout at stage 1` | Son sürümü kurun; gösterilen ayrıntılı CUDA hatasıyla birlikte ekran kartı modeli ve VRAM miktarını bildirin |
 | EPUB zaten var | Farklı kayıt adı seçin veya üzerine yazmayı onaylayın |
 | OCR hataları var | Daha temiz tarama veya daha güçlü model deneyin |
 
@@ -134,6 +136,8 @@ küçük bir örnek kullanın.
 
 ## Gizlilik
 
-PDF içeriği bilgisayarınızda işlenir. İlk kullanımda model dosyaları indirilebilir; bu indirme
-belgenizin içeriğini göndermez. Kullanılan açık kaynak bileşenler ve ayrıntılı teknik bilgiler için
+PDF içeriği bilgisayarınızda işlenir. İlk kullanımda 6,5 GB model dosyası indirilir ve sonraki
+denemelerde önbellekten kullanılır. `snapshots` ve `blobs` klasörleri aynı önbellek dosyasını iki
+farklı görünümde gösterebilir; bunları elle değiştirmeyin. Bu indirme belgenizin içeriğini göndermez.
+Kullanılan açık kaynak bileşenler ve ayrıntılı teknik bilgiler için
 [ana README dosyasına](README.md) bakabilirsiniz.

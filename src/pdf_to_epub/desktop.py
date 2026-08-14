@@ -165,9 +165,22 @@ def friendly_error(error: Exception) -> str:
     if "PyTorch is not installed" in message:
         return "PyTorch bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
     if "CUDA is not available" in message:
-        return "NVIDIA CUDA kullanılamıyor; dönüşüm çok yavaş olabilir veya çalışmayabilir."
+        return (
+            "NVIDIA CUDA kullanılamıyor. Bu OCR motoru CPU ile çalışmaz. "
+            "NVIDIA sürücüsünü kontrol edip KURULUM.bat dosyasını yeniden çalıştırın."
+        )
     if "Output already exists" in message:
         return "Aynı isimde bir EPUB zaten var. Farklı bir kayıt yeri seçin."
     if "CUDA out of memory" in message or "out of memory" in message.lower():
         return "Ekran kartı belleği yetmedi. OCR modelini 'base' veya 'small' seçip tekrar deneyin."
+    if "recommends at least 16 GB" in message:
+        return (
+            "Ekran kartınızda önerilen 16 GB'den az VRAM var. Diğer GPU uygulamalarını "
+            "kapatın ve önce 'tiny' veya 'small' seçeneğini deneyin."
+        )
+    if "Failed to extract page" in message:
+        return (
+            f"OCR ilk sayfayı işleyemedi. Ayrıntı: {message} "
+            "Ekran kartınızın modelini ve VRAM miktarını hata bildirimine ekleyin."
+        )
     return message
