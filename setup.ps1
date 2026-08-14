@@ -1,7 +1,10 @@
 # Windows setup used by KURULUM.bat.
 # This file intentionally uses ASCII text for Windows PowerShell 5.1 compatibility.
 
-param([switch] $SelfTest)
+param(
+    [switch] $SelfTest,
+    [switch] $PythonProbeSelfTest
+)
 
 $ErrorActionPreference = "Stop"
 
@@ -13,34 +16,105 @@ if ($SelfTest) {
 $venvPath = Join-Path $PSScriptRoot ".venv"
 $venvPython = Join-Path $venvPath "Scripts\python.exe"
 
-function Find-SupportedPython {
-    $candidates = @(
-        [pscustomobject]@{ Command = "py"; Arguments = @("-3.12") },
-        [pscustomobject]@{ Command = "py"; Arguments = @("-3.11") },
-        [pscustomobject]@{ Command = "py"; Arguments = @("-3.13") },
-        [pscustomobject]@{ Command = "python"; Arguments = @() }
-    )
+function Get-PythonCandidateVersion {
+    param([Parameter(Mandatory = $true)] $Candidate)
 
-    foreach ($candidate in $candidates) {
+    # Windows may expose a Microsoft Store/App Execution Alias named python.exe.
+    # Get-Command can see it even though running it does not start Python. Probe every
+    # candidate without allowing that native error to abort the entire installer.
+    $previousErrorActionPreference = $ErrorActionPreference
+    $output = $null
+    $exitCode = 1
+    try {
+        $ErrorActionPreference = "Continue"
+        $output = & $Candidate.Command @($Candidate.Arguments) -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
+        $exitCode = $LASTEXITCODE
+    } catch {
+        return $null
+    } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+
+    if ($exitCode -ne 0) {
+        return $null
+    }
+
+    $version = [string]($output | Select-Object -Last 1)
+    if ($version -in @("3.11", "3.12", "3.13")) {
+        return $version
+    }
+    return $null
+}
+
+function Find-SupportedPython {
+    param([object[]] $Candidates)
+
+    if (-not $PSBoundParameters.ContainsKey("Candidates")) {
+        $Candidates = @(
+            [pscustomobject]@{ Command = "py"; Arguments = @("-3.12") },
+            [pscustomobject]@{ Command = "py"; Arguments = @("-3.11") },
+            [pscustomobject]@{ Command = "py"; Arguments = @("-3.13") },
+            [pscustomobject]@{ Command = "python"; Arguments = @() }
+        )
+    }
+
+    foreach ($candidate in $Candidates) {
         if (-not (Get-Command $candidate.Command -ErrorAction SilentlyContinue)) {
             continue
         }
-        $version = & $candidate.Command @($candidate.Arguments) -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')" 2>$null
-        if ($LASTEXITCODE -eq 0 -and $version -in @("3.11", "3.12", "3.13")) {
+        if (Get-PythonCandidateVersion -Candidate $candidate) {
             return $candidate
         }
     }
 
     $knownPaths = @(
+        (Join-Path $env:LocalAppData "Programs\Python\Python313\python.exe"),
         (Join-Path $env:LocalAppData "Programs\Python\Python312\python.exe"),
-        (Join-Path $env:ProgramFiles "Python312\python.exe")
+        (Join-Path $env:LocalAppData "Programs\Python\Python311\python.exe"),
+        (Join-Path $env:ProgramFiles "Python313\python.exe"),
+        (Join-Path $env:ProgramFiles "Python312\python.exe"),
+        (Join-Path $env:ProgramFiles "Python311\python.exe")
     )
     foreach ($knownPath in $knownPaths) {
         if (Test-Path $knownPath) {
-            return [pscustomobject]@{ Command = $knownPath; Arguments = @() }
+            $candidate = [pscustomobject]@{ Command = $knownPath; Arguments = @() }
+            if (Get-PythonCandidateVersion -Candidate $candidate) {
+                return $candidate
+            }
         }
     }
     return $null
+}
+
+if ($PythonProbeSelfTest) {
+    $probeRoot = Join-Path ([IO.Path]::GetTempPath()) ("pdf-to-epub-python-probe-" + [guid]::NewGuid())
+    New-Item -ItemType Directory -Path $probeRoot | Out-Null
+    try {
+        $brokenPython = Join-Path $probeRoot "python.cmd"
+        $workingPython = Join-Path $probeRoot "python312.cmd"
+        Set-Content -LiteralPath $brokenPython -Encoding Ascii -Value @(
+            "@echo off",
+            "echo Python bulunamadi 1>&2",
+            "exit /b 9009"
+        )
+        Set-Content -LiteralPath $workingPython -Encoding Ascii -Value @(
+            "@echo off",
+            "echo 3.12",
+            "exit /b 0"
+        )
+
+        $selection = Find-SupportedPython -Candidates @(
+            [pscustomobject]@{ Command = $brokenPython; Arguments = @() },
+            [pscustomobject]@{ Command = $workingPython; Arguments = @() }
+        )
+        if (-not $selection -or $selection.Command -ne $workingPython) {
+            throw "Broken Python alias was not skipped."
+        }
+        Write-Output "PDF_TO_EPUB_PYTHON_ALIAS_OK"
+    } finally {
+        Remove-Item -LiteralPath $probeRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    exit 0
 }
 
 function Invoke-SelectedPython {
