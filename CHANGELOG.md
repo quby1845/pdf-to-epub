@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.4] - 2026-08-20
+
+### Fixed
+
+- Prevent the mouse wheel from changing the OCR mode or EPUB/Markdown/MOBI selector while
+  scrolling the desktop form; wheel input over either selector now scrolls the page instead.
+
 ## [0.8.3] - 2026-08-20
 
 ### Fixed
@@ -217,7 +224,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.3...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.4...HEAD
+[0.8.4]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.0...v0.8.1

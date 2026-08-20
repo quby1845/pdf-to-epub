@@ -278,6 +278,11 @@ class PdfToEpubApp:
         if content_height > self.content_canvas.winfo_height():
             self.content_canvas.yview_scroll(int(-event.delta / 120), "units")
 
+    def _scroll_over_selector(self, event: tk.Event[tk.Misc]) -> str:
+        """Scroll the page without letting a readonly selector change its value."""
+        self._scroll_content(event)
+        return "break"
+
     def _build_header(self, parent: tk.Widget) -> None:
         theme = self.theme
         header = tk.Frame(parent, background=theme.header, padx=32, pady=18)
@@ -583,6 +588,7 @@ class PdfToEpubApp:
         )
         self.model_combo.pack(fill="x")
         self.model_combo.bind("<<ComboboxSelected>>", self._model_changed)
+        self.model_combo.bind("<MouseWheel>", self._scroll_over_selector)
         tk.Label(
             model_box,
             textvariable=self.model_help_var,
@@ -617,6 +623,7 @@ class PdfToEpubApp:
         )
         self.output_format_combo.pack(fill="x")
         self.output_format_combo.bind("<<ComboboxSelected>>", self._format_changed)
+        self.output_format_combo.bind("<MouseWheel>", self._scroll_over_selector)
 
         output_box = tk.Frame(card, background=theme.card)
         output_box.pack(fill="x", pady=(14, 0))
