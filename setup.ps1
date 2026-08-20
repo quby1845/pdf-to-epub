@@ -111,16 +111,41 @@ function Test-PythonCommand {
     if (-not (Test-Path -LiteralPath $Command)) {
         return $false
     }
+    return (Invoke-PythonCode -Command $Command -Code $Code -Quiet) -eq 0
+}
+
+function Invoke-PythonCode {
+    param(
+        [Parameter(Mandatory = $true)] [string] $Command,
+        [string[]] $CommandArguments = @(),
+        [Parameter(Mandatory = $true)] [string] $Code,
+        [switch] $Quiet
+    )
+
+    # Windows PowerShell 5.1 can strip quotes from multiline arguments passed to
+    # python -c. A temporary script preserves the probe exactly as written.
+    $scriptPath = Join-Path ([IO.Path]::GetTempPath()) ("p2e-python-" + [guid]::NewGuid() + ".py")
     $previousErrorActionPreference = $ErrorActionPreference
+    $exitCode = 1
     try {
+        Set-Content -LiteralPath $scriptPath -Encoding Ascii -Value $Code
         $ErrorActionPreference = "Continue"
-        & $Command -c $Code *> $null
-        return $LASTEXITCODE -eq 0
+        if ($Quiet) {
+            & $Command @CommandArguments $scriptPath *> $null
+        } else {
+            & $Command @CommandArguments $scriptPath 2>&1 | ForEach-Object { Write-Host $_ }
+        }
+        $exitCode = $LASTEXITCODE
     } catch {
-        return $false
+        if (-not $Quiet) {
+            Write-Host $_ -ForegroundColor Red
+        }
+        $exitCode = 1
     } finally {
         $ErrorActionPreference = $previousErrorActionPreference
+        Remove-Item -LiteralPath $scriptPath -Force -ErrorAction SilentlyContinue
     }
+    return $exitCode
 }
 
 function Reset-ManagedVenv {
@@ -404,6 +429,23 @@ if ($InstallerLogicSelfTest) {
         if ($amdProbe -notmatch 'Expected rocm PyTorch') {
             throw "AMD ROCm probe selection failed."
         }
+        $pythonSelection = Find-SupportedPython
+        if (-not $pythonSelection) {
+            throw "Python was not available for the quoted-code probe."
+        }
+        $quotedCode = @'
+message = "GPU acceleration is not available"
+if message != "GPU acceleration is not available":
+    raise RuntimeError("quoted Python code was corrupted")
+'@
+        $quotedCodeExit = Invoke-PythonCode `
+            -Command $pythonSelection.Command `
+            -CommandArguments $pythonSelection.Arguments `
+            -Code $quotedCode `
+            -Quiet
+        if ($quotedCodeExit -ne 0) {
+            throw "Quoted Python code did not survive Windows PowerShell argument handling."
+        }
 
         $testVenv = Join-Path $testRoot "venv"
         New-Item -ItemType Directory -Path $testVenv -Force | Out-Null
@@ -510,8 +552,8 @@ if (-not (Test-PythonCommand -Command $venvPython -Code $torchProbe)) {
 }
 
 Write-Host "[4/7] PyTorch gercek GPU islemiyle dogrulaniyor..." -ForegroundColor Green
-& $venvPython -c $torchProbe
-if ($LASTEXITCODE -ne 0) {
+$torchProbeExit = Invoke-PythonCode -Command $venvPython -Code $torchProbe
+if ($torchProbeExit -ne 0) {
     throw "PyTorch kurulmus gorunuyor ancak ekran kartinda calismiyor. Kurulum onarilamadi."
 }
 
@@ -520,8 +562,8 @@ Write-Host "[5/7] PDF to EPUB OCR ve bagimliliklar kuruluyor..." -ForegroundColo
 if ($LASTEXITCODE -ne 0) { throw "Proje bagimliliklari kurulamadi." }
 
 # Dependencies can change PyTorch constraints. Verify import and a real kernel again.
-& $venvPython -c $torchProbe
-if ($LASTEXITCODE -ne 0) {
+$torchProbeExit = Invoke-PythonCode -Command $venvPython -Code $torchProbe
+if ($torchProbeExit -ne 0) {
     throw "Bagimlilik kurulumundan sonra PyTorch GPU dogrulamasi basarisiz oldu."
 }
 

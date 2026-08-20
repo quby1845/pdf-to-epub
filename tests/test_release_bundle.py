@@ -63,3 +63,11 @@ def test_windows_setup_contains_verified_amd_rocm_path() -> None:
     assert "rocm-rel-7.2.1" in setup
     assert "torch-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl" in setup
     assert 'if ($gpuProfile.Vendor -eq "amd")' in setup
+
+
+def test_windows_setup_runs_multiline_torch_probe_from_a_file() -> None:
+    setup = Path("setup.ps1").read_text(encoding="ascii")
+    assert "function Invoke-PythonCode" in setup
+    assert '("p2e-python-" + [guid]::NewGuid() + ".py")' in setup
+    assert "& $venvPython -c $torchProbe" not in setup
+    assert setup.count("Invoke-PythonCode -Command $venvPython -Code $torchProbe") == 2

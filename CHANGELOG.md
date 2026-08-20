@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-08-20
+
+### Fixed
+
+- Run multiline PyTorch GPU validation through a temporary Python file so Windows PowerShell 5.1
+  cannot strip quotes and produce a false `SyntaxError` during the easy installation.
+
 ## [0.8.0] - 2026-08-20
 
 ### Added
@@ -196,7 +203,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.1...HEAD
+[0.8.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.4...v0.7.0
 [0.6.4]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.3...v0.6.4
