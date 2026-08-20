@@ -21,14 +21,21 @@ def test_gui_policy_is_noop_outside_windows() -> None:
 def test_gui_policy_hides_all_subprocesses_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
     calls: list[dict[str, object]] = []
 
-    def original(*_args: object, **kwargs: object) -> str:
-        calls.append(kwargs)
-        return "process"
+    class OriginalPopen:
+        def __init__(self, *_args: object, **kwargs: object) -> None:
+            calls.append(kwargs)
 
-    monkeypatch.setattr(subprocess, "Popen", original)
+    monkeypatch.setattr(subprocess, "Popen", OriginalPopen)
 
     assert install_gui_subprocess_policy(platform="win32") is True
-    assert subprocess.Popen(["pdftoppm"], cwd="work") == "process"
+    process = subprocess.Popen(["pdftoppm"], cwd="work")
+    assert isinstance(process, OriginalPopen)
+    assert isinstance(subprocess.Popen, type)
+
+    class AsyncioCompatiblePopen(subprocess.Popen):
+        pass
+
+    assert issubclass(AsyncioCompatiblePopen, OriginalPopen)
     passed_kwargs = calls[-1]
     assert passed_kwargs["creationflags"] & 0x08000000
     assert passed_kwargs["cwd"] == "work"

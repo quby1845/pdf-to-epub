@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-08-20
+
+### Fixed
+
+- Keep the Windows hidden-console `subprocess.Popen` policy as a real class so `asyncio` and
+  PyTorch can subclass it without raising `TypeError: function() argument 'code' must be code`.
+
 ## [0.8.1] - 2026-08-20
 
 ### Fixed
@@ -203,7 +210,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.1...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.2...HEAD
+[0.8.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.4...v0.7.0

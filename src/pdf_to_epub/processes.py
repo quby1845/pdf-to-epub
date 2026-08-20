@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import subprocess
 import sys
-from collections.abc import Callable
 from typing import Any
 
 
@@ -30,12 +29,16 @@ def install_gui_subprocess_policy(*, platform: str | None = None) -> bool:
     if getattr(subprocess.Popen, "_pdf_to_epub_hidden", False):
         return True
 
-    original: Callable[..., subprocess.Popen[Any]] = subprocess.Popen
+    original = subprocess.Popen
 
-    def hidden_popen(*args: Any, **kwargs: Any) -> subprocess.Popen[Any]:
-        return original(*args, **_hidden_windows_kwargs(kwargs))
+    class HiddenPopen(original):  # type: ignore[misc,valid-type]
+        """Popen subclass that keeps the class contract required by asyncio."""
 
-    hidden_popen._pdf_to_epub_hidden = True  # type: ignore[attr-defined]
-    hidden_popen._pdf_to_epub_original = original  # type: ignore[attr-defined]
-    subprocess.Popen = hidden_popen  # type: ignore[assignment,misc]
+        _pdf_to_epub_hidden = True
+        _pdf_to_epub_original = original
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **_hidden_windows_kwargs(kwargs))
+
+    subprocess.Popen = HiddenPopen  # type: ignore[assignment,misc]
     return True
