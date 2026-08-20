@@ -7,6 +7,7 @@ import pytest
 from pdf_to_epub.converter import ConversionProgress
 from pdf_to_epub.desktop import (
     DEFAULT_MODEL_LABEL,
+    MODEL_LABELS,
     build_conversion_options,
     default_epub_path,
     friendly_error,
@@ -98,7 +99,18 @@ def test_desktop_messages_are_friendly_and_future_safe() -> None:
 
 
 def test_desktop_model_guidance_and_progress_stages() -> None:
-    assert "önerilen" in model_description(DEFAULT_MODEL_LABEL)
+    assert "önerilen" in model_description(DEFAULT_MODEL_LABEL).casefold()
+    assert list(MODEL_LABELS) == [
+        "Tiny — 512 px / tahmini ≈7 GB VRAM",
+        "Small — 640 px / tahmini ≈7,5 GB VRAM",
+        "Base — 1024 px / tahmini ≈8 GB VRAM",
+        "Large — 1280 px / tahmini ≈8 GB+ VRAM",
+        "Gundam — kırpma / tahmini ≈10 GB+ VRAM",
+    ]
+    assert set(MODEL_LABELS.values()) == {"tiny", "small", "base", "large", "gundam"}
+    assert "≈8 GB+" in model_description(DEFAULT_MODEL_LABEL)
+    assert "≈7 GB" in model_description(next(iter(MODEL_LABELS)))
+    assert "≈7,5 GB" in model_description(list(MODEL_LABELS)[1])
     assert model_description("not-a-model") == "OCR modelini seçin."
     assert progress_stage("Checking and downloading OCR models") == 0
     assert progress_stage("Converting PDF to Markdown with OCR") == 1

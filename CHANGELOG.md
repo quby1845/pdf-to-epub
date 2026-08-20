@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Show each desktop OCR option's processing resolution and clearly labelled approximate total
+  VRAM estimate directly in the model selector, with guidance that actual peak usage varies by
+  page, crop count, driver, and other GPU applications.
+
 ## [0.6.3] - 2026-08-14
 
 ### Fixed

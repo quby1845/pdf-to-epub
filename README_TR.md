@@ -120,13 +120,17 @@ sonucu belgeye göre değişebileceği için oluşan EPUB'ı yine de gözden ge�
 
 ## Hangi OCR modelini seçmeliyim?
 
-| Model | Ne zaman kullanılır? |
-| --- | --- |
-| `tiny` | En düşük sayfa çözünürlüğü ve ek çalışma belleği; ana model yine 6,5 GB'dır |
-| `small` | Düşük sayfa işleme belleği; kalite daha düşük olabilir |
-| `base` | Sayfa işleme belleği hatası alan 8 GB ve üzeri kartlar |
-| `large` | Çoğu kullanıcı için dengeli ve önerilen başlangıç |
-| `gundam` | En yüksek kalite ve en yüksek sayfa işleme yükü |
+| Model | İşleme boyutu | Tahmini toplam VRAM | Ne zaman kullanılır? |
+| --- | ---: | ---: | --- |
+| `tiny` | 512 px | ≈7 GB | En hızlı deneme; küçük yazılarda kalite düşebilir |
+| `small` | 640 px | ≈7,5 GB | Temiz ve kolay taramalarda daha hızlı seçenek |
+| `base` | 1024 px | ≈8 GB | Temiz taramalar ve 8 GB kartlar için güvenli seçim |
+| `large` | 1280 px | ≈8 GB+ | Çoğu kullanıcı için dengeli ve önerilen başlangıç |
+| `gundam` | 1024/640 px, kırpma | ≈10 GB+ | Zor sayfalarda yüksek kalite; tüketim değişkendir |
+
+Bu rakamlar kesin ölçüm değil, seçim yapmayı kolaylaştıran yaklaşık tepe tüketim tahminleridir.
+Beş seçenek de yaklaşık 6,5 GB'lık aynı ana modeli kullanır. Sayfa içeriği, kırpma sayısı, diğer
+GPU programları, PyTorch ve sürücü sürümü gerçek tüketimi değiştirebilir.
 
 ## Sorun yaşarsanız
 

@@ -20,21 +20,21 @@ from pdf_to_epub.converter import (
 )
 
 MODEL_LABELS = {
-    "Tiny — en hızlı": "tiny",
-    "Small — düşük bellek": "small",
-    "Base — hafif ve uyumlu": "base",
-    "Large — dengeli (önerilen)": "large",
-    "Gundam — en yüksek kalite": "gundam",
+    "Tiny — 512 px / tahmini ≈7 GB VRAM": "tiny",
+    "Small — 640 px / tahmini ≈7,5 GB VRAM": "small",
+    "Base — 1024 px / tahmini ≈8 GB VRAM": "base",
+    "Large — 1280 px / tahmini ≈8 GB+ VRAM": "large",
+    "Gundam — kırpma / tahmini ≈10 GB+ VRAM": "gundam",
 }
-DEFAULT_MODEL_LABEL = "Large — dengeli (önerilen)"
+DEFAULT_MODEL_LABEL = "Large — 1280 px / tahmini ≈8 GB+ VRAM"
 ThemeName = Literal["light", "dark"]
 
 _MODEL_DESCRIPTIONS = {
-    "tiny": "En hızlı seçenektir; metin kalitesi daha düşük olabilir.",
-    "small": "Sayfa işleme belleğini azaltır; 6,5 GB ana model yine aynıdır.",
-    "base": "Sayfa çözünürlüğünü ve ek GPU yükünü azaltan hafif seçenektir.",
-    "large": "Hız ve kalite arasında çoğu kitap için önerilen dengedir.",
-    "gundam": "En iyi kaliteyi hedefler; güçlü bir ekran kartı ve daha fazla zaman ister.",
+    "tiny": "Tahmini ≈7 GB. En hızlıdır; küçük yazılarda kalite düşebilir.",
+    "small": "Tahmini ≈7,5 GB. Temiz taramalarda hızlı ve yeterli olabilir.",
+    "base": "Tahmini ≈8 GB. Temiz taramalar ve 8 GB kartlar için güvenli seçimdir.",
+    "large": "Tahmini ≈8 GB+. Önerilen kalite/hız dengesidir; diğer GPU uygulamalarını kapatın.",
+    "gundam": "Tahmini ≈10 GB+. Kırpma kullanır; tepe tüketimi sayfaya göre değişir.",
 }
 
 _PROGRESS_TRANSLATIONS = {
