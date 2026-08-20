@@ -12,13 +12,15 @@ metin API'sine gönderilmez.
 
 - Windows 10 veya Windows 11
 - Python 3.11–3.13 (yoksa kolay kurulum yüklemeyi dener)
-- NVIDIA CUDA ekran kartı; en az 16 GB VRAM, tercihen 24 GB
+- NVIDIA CUDA ekran kartı; mevcut sıkıştırılmamış model için pratik alt sınır 8 GB VRAM
 - En az 16 GB RAM ve yaklaşık 20 GB boş alan
 - İlk kurulum ve ilk model indirmesi için internet bağlantısı
 
 NVIDIA CUDA ekran kartınız yoksa dönüşüm çalışmaz; kullanılan yerel DeepSeek OCR motoru CPU ile
-dönüşümü desteklememektedir. OCR kalite seçeneği 6,5 GB model indirmesinin boyutunu değil,
-sayfaların işlenme çözünürlüğünü değiştirir.
+dönüşümü desteklememektedir. 6 GB kartlar mevcut sıkıştırılmamış modeli güvenilir biçimde
+çalıştıramaz. 8 GB kartlarda diğer GPU uygulamalarını kapatmak gerekebilir; daha fazla VRAM daha
+rahat çalışır. OCR kalite seçeneği 6,5 GB model indirmesinin ve ana modelin bellekteki boyutunu
+değil, sayfaların işlenme çözünürlüğünü ve ek çalışma belleğini değiştirir.
 
 ## Üç adımda kurulum
 
@@ -31,7 +33,11 @@ sayfaların işlenme çözünürlüğünü değiştirir.
 Windows koruma uyarısı gösterirse yalnızca bu GitHub deposundan indirdiğinizi doğruladıktan sonra
 **Daha fazla bilgi → Yine de çalıştır** yolunu kullanın. Kurulum; Python, CUDA destekli PyTorch,
 Pandoc, Poppler ve programın bağımlılıklarını hazırlar. İnternet hızına göre 10–30 dakika
-sürebilir; masaüstüne ve Başlat menüsüne **PDF to EPUB OCR** kısayolu ekler.
+sürebilir; masaüstüne ve Başlat menüsüne **PDF to EPUB OCR** kısayolu ekler. Python ortamı ZIP'in
+uzun klasör yoluna değil `%LOCALAPPDATA%\PDF-to-EPUB-OCR\venv` konumuna kurulur. Kurulum yarıda
+kalırsa `KURULUM.bat` bozuk ortamı gerçek içe aktarma ve CUDA testiyle algılayıp yeniden oluşturur.
+RTX 50 serisinde `sm_120` destekli CUDA 13 paketi otomatik seçilir; çalışan RTX 30/40 kurulumu
+gereksiz yere değiştirilmez.
 
 ## Docker ile kurulum (isteğe bağlı)
 
@@ -105,6 +111,8 @@ arayüz açılırken internetten hiçbir görsel indirilmez.
 İlk dönüşümde OCR modeli indirileceği için ilerleme bir süre aynı yerde görünebilir. Program
 bittiğinde EPUB varsayılan olarak PDF'nin bulunduğu klasöre kaydedilir. Sayfa okuma başlayınca
 program toplam sayfa sayısını, o anda okunan sayfayı ve tamamlanma yüzdesini canlı gösterir.
+İlk sayfada PDF hazırlama, modelin GPU'ya yüklenmesi ve OCR aşamaları ayrı mesajlarla belirtilir.
+Bir hata olursa pencere ayrıntılı tanı günlüğünün konumunu da gösterir.
 
 Program PDF'de satır sonunda bölünmüş `bit-miş` gibi Türkçe kelimeleri EPUB oluşturulurken
 otomatik olarak birleştirir. Gerçek tireli `e-posta` benzeri sözcükleri korumaya çalışır; OCR
@@ -114,17 +122,22 @@ sonucu belgeye göre değişebileceği için oluşan EPUB'ı yine de gözden ge�
 
 | Model | Ne zaman kullanılır? |
 | --- | --- |
-| `small` | Düşük ekran kartı belleği; kalite daha düşük olabilir |
-| `base` | Bellek hatası alan bilgisayarlar |
+| `tiny` | En düşük sayfa çözünürlüğü ve ek çalışma belleği; ana model yine 6,5 GB'dır |
+| `small` | Düşük sayfa işleme belleği; kalite daha düşük olabilir |
+| `base` | Sayfa işleme belleği hatası alan 8 GB ve üzeri kartlar |
 | `large` | Çoğu kullanıcı için dengeli ve önerilen başlangıç |
-| `gundam` | 24 GB VRAM önerilen en yüksek kalite seçeneği |
+| `gundam` | En yüksek kalite ve en yüksek sayfa işleme yükü |
 
 ## Sorun yaşarsanız
 
 | Sorun | Çözüm |
 | --- | --- |
 | Kurulum yarıda kaldı | `KURULUM.bat` dosyasını yeniden çalıştırın |
-| Ekran kartı belleği hatası | Modeli `base` veya `small` seçin; diğer GPU uygulamalarını kapatın |
+| `[WinError 206]` | Son sürümde ortam kısa kullanıcı yoluna kurulur; `KURULUM.bat` dosyasını yeniden çalıştırın |
+| `[WinError 1314]` | Son sürüm model cache'inde symlink yerine normal kopya kullanır; yönetici/Developer Mode gerekmez |
+| RTX 50 / `no kernel image` | `KURULUM.bat` dosyasını yeniden çalıştırın; kurulum CUDA 13 + `sm_120` paketini seçer |
+| 6 GB VRAM | Mevcut 6,5 GB ana model sığmaz; Tiny/Small bunu küçültmez |
+| 8 GB ve üzeri bellek hatası | Diğer GPU uygulamalarını kapatın; sayfa yükü için `base` veya `small` deneyin |
 | Pandoc/PyTorch bulunamadı | Kurulumu yeniden çalıştırın ve bilgisayarı yeniden başlatın |
 | `Failed to extract page 1 layout at stage 1` | Son sürümü kurun; gösterilen ayrıntılı CUDA hatasıyla birlikte ekran kartı modeli ve VRAM miktarını bildirin |
 | EPUB zaten var | Farklı kayıt adı seçin veya üzerine yazmayı onaylayın |
@@ -138,6 +151,8 @@ küçük bir örnek kullanın.
 
 PDF içeriği bilgisayarınızda işlenir. İlk kullanımda 6,5 GB model dosyası indirilir ve sonraki
 denemelerde önbellekten kullanılır. `snapshots` ve `blobs` klasörleri aynı önbellek dosyasını iki
-farklı görünümde gösterebilir; bunları elle değiştirmeyin. Bu indirme belgenizin içeriğini göndermez.
+farklı görünümde gösterebilir; bunları elle değiştirmeyin. Windows'ta snapshot dosyaları normal
+kopya olarak hazırlanır; `.ipynb_checkpoints` ve `README-checkpoint.md` gibi model için gereksiz
+dosyalar dönüşüm ön koşulu değildir. Bu indirme belgenizin içeriğini göndermez.
 Kullanılan açık kaynak bileşenler ve ayrıntılı teknik bilgiler için
 [ana README dosyasına](README.md) bakabilirsiniz.

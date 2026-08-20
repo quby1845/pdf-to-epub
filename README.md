@@ -47,13 +47,15 @@ settings. PDF to EPUB OCR provides a reproducible command-line workflow for scan
 | --- | --- |
 | Operating system | Windows 10/11; Linux is community-supported |
 | Python | 3.11, 3.12, or 3.13 |
-| GPU | NVIDIA CUDA GPU; 16 GB VRAM minimum, 24 GB recommended upstream |
+| GPU | NVIDIA CUDA GPU; 8 GB is the practical baseline for the current unquantized model |
 | Memory | 16 GB RAM recommended |
 | Disk | At least 20 GB free for Python packages and the 6.5 GB OCR model |
 | System tools | Pandoc and Poppler |
 
-Local DeepSeek OCR requires CUDA and does not support CPU conversion. The OCR quality setting
-changes the page-processing resolution, not the 6.5 GB model download size.
+Local DeepSeek OCR requires CUDA and does not support CPU conversion. A 6 GB card cannot reliably
+hold the current unquantized model. An 8 GB card can work when other GPU applications are closed;
+more VRAM provides additional headroom. The OCR quality setting changes the page-processing
+resolution and working memory, not the 6.5 GB model download or its base weight footprint.
 
 ## Installation
 
@@ -68,8 +70,11 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
 ```
 
-The script creates `.venv`, installs a CUDA-enabled PyTorch build and the Python package,
-checks Pandoc and Poppler, and creates `input/` and `output/` directories.
+The script installs its managed environment at the short, stable
+`%LOCALAPPDATA%\PDF-to-EPUB-OCR\venv` path, avoiding Windows path-length failures even when the
+downloaded ZIP is deeply nested. It repairs partial environments using real imports and a CUDA
+kernel probe, selects CUDA 13 with `sm_120` support for RTX 50 / Blackwell cards, keeps compatible
+RTX 30/40 installs, installs the package, and checks Pandoc and Poppler.
 
 ### Docker setup (optional CLI workflow)
 
@@ -144,7 +149,8 @@ metadata was prepared. Installation from PyPI will be documented after the first
 For most Windows users, open the desktop shortcut created by `KURULUM.bat`. The graphical app
 provides file selection, book metadata, OCR quality choices, progress updates, and actionable
 error messages without requiring a terminal. During OCR it reports the real current page, total
-page count, and completion percentage from pdf-craft's page events. A persistent light/dark theme
+page count, completion percentage, PDF rendering, and the first model-load/inference phase from
+pdf-craft's page events. A persistent light/dark theme
 toggle updates the complete interface, including native Windows chrome. The modern step-based
 layout uses bundled theme-aware icons, a visual file summary, and clear status feedback; no UI
 assets are fetched from the internet.
@@ -189,8 +195,12 @@ Run `pdf-to-epub-ocr --help` for the complete interface.
 - `--keep-intermediates` preserves the Markdown and extracted assets for inspection.
 - Model weights are downloaded by pdf-craft/Hugging Face on first use and reused from the cache;
   the PDF itself remains local. The `snapshots` and `blobs` views can show the same cached weight
-  file and should not be manually edited. Review upstream dependency policies if your environment
-  has strict network controls.
+  file and should not be manually edited. On Windows the application forces ordinary file copies
+  instead of privileged symlinks; optional checkpoint notebook/README artifacts are not required
+  for conversion. Review upstream dependency policies if your environment has strict controls.
+- The GUI writes a rotating diagnostic log to the per-user application log directory and shows
+  its exact path after an error. It records GPU/VRAM, CUDA architecture, model-load, and page-event
+  details without recording the PDF text.
 
 ## Known limitations
 
@@ -206,9 +216,13 @@ Run `pdf-to-epub-ocr --help` for the complete interface.
 | --- | --- |
 | `PyTorch is not installed` | Install the CUDA build selected for your driver and Python version. |
 | `CUDA is not available` | Check the NVIDIA driver and PyTorch CUDA build. CPU runs are not supported. |
+| `[WinError 206]` during setup | Run the current `KURULUM.bat`; it uses a short managed environment and repairs partial installs. |
+| `[WinError 1314]` in the model cache | Upgrade to the current release; it falls back to ordinary copies without admin or Developer Mode. |
+| RTX 50 / `no kernel image` | Rerun `KURULUM.bat` so CUDA 13 PyTorch with `sm_120` kernels is selected. |
 | `Pandoc was not found` | Install Pandoc, then open a new terminal so `PATH` is refreshed. |
 | Poppler/PDF rendering error | Install Poppler and ensure its `bin` directory is on `PATH`. |
-| CUDA out of memory | Retry with `--ocr-size large` or `--ocr-size base` and close GPU-heavy apps. |
+| 6 GB VRAM | The full model does not fit reliably; tiny/small only reduce per-page working memory. |
+| CUDA out of memory on 8 GB+ | Close GPU-heavy apps, then retry with `--ocr-size base` or `small`. |
 | `Failed to extract page 1 layout at stage 1` | Install the latest release and report the detailed CUDA error it now displays, plus GPU model and VRAM. |
 | Existing output error | Choose another `-o` path or pass `--overwrite`. |
 

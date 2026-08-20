@@ -16,6 +16,7 @@ def test_noninteractive_cli_builds_expected_options(
     captured = {}
 
     monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(cli, "configure_logging", lambda: tmp_path / "app.log")
     monkeypatch.setattr(cli, "check_runtime", lambda: None)
 
     def fake_convert(options, progress):
@@ -37,6 +38,7 @@ def test_cli_reports_conversion_error(
 ) -> None:
     pdf = tmp_path / "scan.pdf"
     pdf.write_bytes(b"%PDF")
+    monkeypatch.setattr(cli, "configure_logging", lambda: tmp_path / "app.log")
     monkeypatch.setattr(cli, "check_runtime", lambda: None)
     monkeypatch.setattr(
         cli, "convert_pdf", lambda *_args, **_kwargs: (_ for _ in ()).throw(ConversionError("boom"))

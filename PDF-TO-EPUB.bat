@@ -4,7 +4,7 @@ cd /d "%~dp0"
 
 if /I "%~1"=="--self-test" goto self_test
 
-if not exist ".venv\Scripts\pdf-to-epub-gui.exe" goto not_installed
+if not exist "%LocalAppData%\PDF-to-EPUB-OCR\venv\Scripts\pdf-to-epub-gui.exe" goto not_installed
 
 set "POWERSHELL=%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe"
 if not exist "%POWERSHELL%" goto powershell_missing

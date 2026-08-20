@@ -24,6 +24,37 @@ from pdf_to_epub.converter import (
 )
 
 
+class FakeCudaTensor:
+    def add_(self, _value: int) -> FakeCudaTensor:
+        return self
+
+
+def fake_torch(
+    *,
+    total_gib: float,
+    free_gib: float,
+    capability: tuple[int, int] = (8, 9),
+    architectures: list[str] | None = None,
+) -> types.SimpleNamespace:
+    fake_cuda = types.SimpleNamespace(
+        is_available=lambda: True,
+        get_device_properties=lambda _device: types.SimpleNamespace(
+            total_memory=total_gib * 1024**3,
+            name="Test NVIDIA GPU",
+        ),
+        get_device_capability=lambda _device: capability,
+        mem_get_info=lambda _device: (free_gib * 1024**3, total_gib * 1024**3),
+        get_arch_list=lambda: architectures or [f"sm_{capability[0]}{capability[1]}"],
+        synchronize=lambda: None,
+    )
+    return types.SimpleNamespace(
+        __version__="test",
+        version=types.SimpleNamespace(cuda="test"),
+        cuda=fake_cuda,
+        ones=lambda *_args, **_kwargs: FakeCudaTensor(),
+    )
+
+
 def options(tmp_path: Path, **overrides: object) -> ConversionOptions:
     pdf_path = tmp_path / "source.pdf"
     pdf_path.write_bytes(b"%PDF-test")
@@ -163,25 +194,54 @@ def test_check_runtime_handles_missing_tools_and_cpu(monkeypatch: pytest.MonkeyP
         check_runtime()
 
 
-def test_check_runtime_warns_when_gpu_has_less_than_16_gib(
+def test_check_runtime_warns_when_available_vram_is_low(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr("pdf_to_epub.converter.shutil.which", lambda _name: "pandoc")
-    fake_cuda = types.SimpleNamespace(
-        is_available=lambda: True,
-        get_device_properties=lambda _device: types.SimpleNamespace(total_memory=8 * 1024**3),
-    )
-    monkeypatch.setitem(sys.modules, "torch", types.SimpleNamespace(cuda=fake_cuda))
+    monkeypatch.setitem(sys.modules, "torch", fake_torch(total_gib=8, free_gib=5.5))
     warning = check_runtime()
     assert warning is not None
-    assert "8.0 GB VRAM" in warning
-    assert "tiny or small" in warning
+    assert "5.5 GB" in warning
+    assert "8.0 GB VRAM available" in warning
+
+
+def test_check_runtime_rejects_six_gib_gpu(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pdf_to_epub.converter.shutil.which", lambda _name: "pandoc")
+    monkeypatch.setitem(sys.modules, "torch", fake_torch(total_gib=6, free_gib=5.5))
+    with pytest.raises(ConversionError, match="does not fit reliably in a 6 GB GPU"):
+        check_runtime()
+
+
+def test_check_runtime_rejects_too_little_available_vram(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("pdf_to_epub.converter.shutil.which", lambda _name: "pandoc")
+    monkeypatch.setitem(sys.modules, "torch", fake_torch(total_gib=8, free_gib=4))
+    with pytest.raises(ConversionError, match="not enough free VRAM"):
+        check_runtime()
+
+
+def test_check_runtime_requires_sm120_for_blackwell(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pdf_to_epub.converter.shutil.which", lambda _name: "pandoc")
+    monkeypatch.setitem(
+        sys.modules,
+        "torch",
+        fake_torch(
+            total_gib=12,
+            free_gib=10,
+            capability=(12, 0),
+            architectures=["sm_90"],
+        ),
+    )
+    with pytest.raises(ConversionError, match="sm_120"):
+        check_runtime()
 
 
 def test_conversion_forwards_options_and_cleans_successful_workdir(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     calls: dict[str, object] = {}
+    monkeypatch.setattr("pdf_to_epub.converter.configure_huggingface_cache", lambda _path: True)
 
     def transform_markdown(**kwargs: object) -> None:
         calls.update(kwargs)
@@ -190,6 +250,11 @@ def test_conversion_forwards_options_and_cleans_successful_workdir(
         on_ocr_event(
             types.SimpleNamespace(
                 kind=types.SimpleNamespace(name="START"), page_index=2, total_pages=10
+            )
+        )
+        on_ocr_event(
+            types.SimpleNamespace(
+                kind=types.SimpleNamespace(name="RENDERED"), page_index=2, total_pages=10
             )
         )
         on_ocr_event(
@@ -219,13 +284,15 @@ def test_conversion_forwards_options_and_cleans_successful_workdir(
     assert not result.work_dir.exists()
     assert calls["ocr_size"] == "base"
     assert calls["dpi"] == 144
-    assert len(progress) == 6
+    assert len(progress) == 7
     assert progress[2] == ConversionProgress(
-        "Reading PDF page", "ocr", current_page=2, total_pages=10, completed_pages=1
+        "Rendering PDF page", "ocr", current_page=2, total_pages=10, completed_pages=1
     )
     assert progress[2].percentage == 10
-    assert progress[3].message == "Completed PDF page"
-    assert progress[3].percentage == 20
+    assert progress[3].message == "Loading OCR model and processing PDF page"
+    assert progress[3].percentage == 10
+    assert progress[4].message == "Completed PDF page"
+    assert progress[4].percentage == 20
 
 
 def test_conversion_progress_percentage_handles_unknown_and_bounds() -> None:
@@ -238,6 +305,7 @@ def test_conversion_progress_percentage_handles_unknown_and_bounds() -> None:
 def test_conversion_keeps_intermediates_and_wraps_upstream_error(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
+    monkeypatch.setattr("pdf_to_epub.converter.configure_huggingface_cache", lambda _path: True)
     root_error = RuntimeError("CUDA out of memory")
     wrapped_error = RuntimeError("Failed to extract page 1 layout at stage 1")
     wrapped_error.__cause__ = root_error

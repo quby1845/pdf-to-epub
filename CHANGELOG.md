@@ -7,6 +7,30 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-08-14
+
+### Fixed
+
+- Install the managed Windows virtual environment under the short, stable
+  `%LOCALAPPDATA%\PDF-to-EPUB-OCR\venv` path so deeply nested release folders no longer cause
+  PyTorch `WinError 206` failures.
+- Detect broken or partial virtual environments with real Python and PyTorch imports, then verify
+  the completed installation with a CUDA tensor operation instead of checking for a folder.
+- Select CUDA 13 PyTorch automatically for RTX 50 / Blackwell GPUs and reject incompatible
+  builds that do not contain `sm_120` kernels; keep working RTX 30/40 environments unchanged.
+- Force copy-based Hugging Face snapshot materialization for the application cache on Windows,
+  avoiding `WinError 1314` without Developer Mode or administrator privileges.
+- Hide Poppler, Pandoc, and other helper-process console windows when launched from the GUI.
+
+### Added
+
+- Add total and available VRAM preflight checks, a clear unsupported 6 GB message, an actionable
+  low-free-VRAM warning, and an early CUDA kernel compatibility test.
+- Distinguish PDF rendering, first model load, and OCR inference in page progress and persistent
+  rotating diagnostic logs.
+- Add regression coverage for Windows copy-only caching, hidden subprocesses, Blackwell package
+  validation, low-VRAM behavior, logging, and installer selection logic.
+
 ## [0.6.2] - 2026-08-14
 
 ### Fixed
@@ -15,8 +39,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   model files are now downloaded through the cache-aware Transformers loading path.
 - Preserve nested pdf-craft and CUDA error details instead of showing only the generic
   `Failed to extract page 1 layout at stage 1` wrapper.
-- Stop before downloading OCR weights when CUDA is unavailable and warn when the detected GPU
-  has less than the upstream-recommended 16 GB of VRAM.
+- Stop before downloading OCR weights when CUDA is unavailable and report detected VRAM.
 
 ### Changed
 
@@ -142,7 +165,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.2...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.3...HEAD
+[0.6.3]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.0...v0.6.1
 [0.6.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.5.0...v0.6.0

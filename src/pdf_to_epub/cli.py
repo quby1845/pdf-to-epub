@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
@@ -19,6 +20,9 @@ from pdf_to_epub.converter import (
     convert_pdf,
     suggested_output_name,
 )
+from pdf_to_epub.diagnostics import configure_logging
+
+logger = logging.getLogger(__name__)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -99,6 +103,8 @@ def _progress(progress: ConversionProgress) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    log_path = configure_logging()
+    logger.info("CLI application starting.")
     parser = build_parser()
     args = parser.parse_args(argv)
     interactive = args.pdf is None
@@ -148,7 +154,9 @@ def main(argv: list[str] | None = None) -> int:
             progress=_progress,
         )
     except (ConversionError, OSError) as error:
+        logger.exception("CLI conversion failed.")
         print(f"[ERROR] {error}", file=sys.stderr)
+        print(f"[ERROR] Diagnostic log: {log_path}", file=sys.stderr)
         return 1
     except KeyboardInterrupt:
         print("\nCancelled.", file=sys.stderr)

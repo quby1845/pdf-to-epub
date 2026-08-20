@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import queue
 import subprocess
@@ -33,7 +34,11 @@ from pdf_to_epub.desktop import (
     progress_stage,
     save_theme_preference,
 )
+from pdf_to_epub.diagnostics import configure_logging, diagnostic_log_path
 from pdf_to_epub.icons import create_app_icon, create_icon
+from pdf_to_epub.processes import install_gui_subprocess_policy
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -869,6 +874,7 @@ class PdfToEpubApp:
             )
             self.events.put(("success", result))
         except Exception as error:
+            logger.exception("Desktop conversion failed.")
             self.events.put(("error", friendly_error(error)))
 
     def _poll_events(self) -> None:
@@ -879,6 +885,7 @@ class PdfToEpubApp:
                     self._apply_progress(payload)  # type: ignore[arg-type]
                 elif kind == "warning":
                     self._set_status(f"Uyarı: {payload}", kind="warning")
+                    messagebox.showwarning("Düşük ekran kartı belleği", str(payload))
                 elif kind == "success":
                     self._finish_success(payload)  # type: ignore[arg-type]
                 elif kind == "error":
@@ -919,7 +926,8 @@ class PdfToEpubApp:
         self.theme_button.configure(state="normal", cursor="hand2")
         self.convert_button.configure(state="normal", text="Tekrar dene", cursor="hand2")
         self._set_status(f"Dönüştürme tamamlanamadı: {message}", kind="error")
-        messagebox.showerror("Dönüştürme hatası", message)
+        log_hint = f"\n\nAyrıntılı günlük: {diagnostic_log_path()}"
+        messagebox.showerror("Dönüştürme hatası", message + log_hint)
 
     def _set_stage(self, active: int) -> None:
         self.active_stage = active
@@ -1044,6 +1052,9 @@ def _enable_windows_scaling() -> None:
 
 
 def main() -> None:
+    install_gui_subprocess_policy()
+    configure_logging()
+    logger.info("Desktop application starting; child consoles hidden on Windows.")
     _enable_windows_scaling()
     root = tk.Tk()
     PdfToEpubApp(root)

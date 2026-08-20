@@ -31,8 +31,8 @@ ThemeName = Literal["light", "dark"]
 
 _MODEL_DESCRIPTIONS = {
     "tiny": "En hızlı seçenektir; metin kalitesi daha düşük olabilir.",
-    "small": "Daha az ekran kartı belleği kullanır.",
-    "base": "Belleği sınırlı bilgisayarlar için güvenli başlangıçtır.",
+    "small": "Sayfa işleme belleğini azaltır; 6,5 GB ana model yine aynıdır.",
+    "base": "Sayfa çözünürlüğünü ve ek GPU yükünü azaltan hafif seçenektir.",
     "large": "Hız ve kalite arasında çoğu kitap için önerilen dengedir.",
     "gundam": "En iyi kaliteyi hedefler; güçlü bir ekran kartı ve daha fazla zaman ister.",
 }
@@ -121,10 +121,21 @@ def friendly_progress(progress: ConversionProgress | str) -> str:
     if isinstance(progress, ConversionProgress):
         if progress.current_page is not None and progress.total_pages is not None:
             percentage = progress.percentage or 0
-            if progress.message == "Reading PDF page":
+            if progress.message == "Rendering PDF page":
                 return (
-                    f"{progress.total_pages} sayfanın {progress.current_page}. sayfası okunuyor "
+                    f"{progress.total_pages} sayfanın {progress.current_page}. "
+                    "sayfası hazırlanıyor "
                     f"(%{percentage})"
+                )
+            if progress.message == "Loading OCR model and processing PDF page":
+                if progress.current_page == 1:
+                    return (
+                        "OCR modeli GPU'ya yükleniyor ve ilk sayfa işleniyor "
+                        f"(1 / {progress.total_pages}, %{percentage})"
+                    )
+                return (
+                    f"{progress.total_pages} sayfanın {progress.current_page}. sayfası OCR ile "
+                    f"işleniyor (%{percentage})"
                 )
             return (
                 f"{progress.current_page} / {progress.total_pages} sayfa tamamlandı (%{percentage})"
@@ -172,11 +183,35 @@ def friendly_error(error: Exception) -> str:
     if "Output already exists" in message:
         return "Aynı isimde bir EPUB zaten var. Farklı bir kayıt yeri seçin."
     if "CUDA out of memory" in message or "out of memory" in message.lower():
-        return "Ekran kartı belleği yetmedi. OCR modelini 'base' veya 'small' seçip tekrar deneyin."
-    if "recommends at least 16 GB" in message:
         return (
-            "Ekran kartınızda önerilen 16 GB'den az VRAM var. Diğer GPU uygulamalarını "
-            "kapatın ve önce 'tiny' veya 'small' seçeneğini deneyin."
+            "Ekran kartı belleği yetmedi. Diğer GPU uygulamalarını kapatın. 'base' veya "
+            "'small' sayfa işleme yükünü azaltabilir; ancak 6,5 GB ana model değişmez."
+        )
+    if "does not fit reliably in a 6 GB GPU" in message:
+        return (
+            "Bu ekran kartının belleği mevcut 6,5 GB OCR modeline yetmiyor. Tiny ve small "
+            "yalnızca sayfa yükünü azaltır; 6 GB kartta ana modeli küçültmez. Ayrıntı: "
+            f"{message}"
+        )
+    if "not enough free VRAM" in message:
+        return (
+            "OCR modelini yüklemek için boş ekran kartı belleği kalmamış. Tarayıcı, oyun ve "
+            f"GPU kullanan diğer uygulamaları kapatıp tekrar deneyin. Ayrıntı: {message}"
+        )
+    if "only" in message and "VRAM available" in message:
+        return (
+            "Kullanılabilir ekran kartı belleği düşük. Tarayıcı, oyun ve GPU kullanan diğer "
+            f"uygulamaları kapatın. Ayrıntı: {message}"
+        )
+    if "sm_120" in message or "cannot run kernels" in message:
+        return (
+            "Ekran kartınızla uyumlu PyTorch/CUDA sürümü kurulu değil. KURULUM.bat dosyasını "
+            "yeniden çalıştırın. Ayrıntı: " + message
+        )
+    if "WinError 1314" in message or "privilege" in message.lower():
+        return (
+            "Model önbelleği Windows izin hatası verdi. Son sürüm normal dosya kopyalama "
+            f"yöntemini kullanır; kurulumu güncelleyip tekrar deneyin. Ayrıntı: {message}"
         )
     if "Failed to extract page" in message:
         return (
