@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-08-20
+
 ### Changed
 
 - Show each desktop OCR option's processing resolution and clearly labelled approximate total
@@ -171,7 +173,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.3...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.4...HEAD
+[0.6.4]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.1...v0.6.2
 [0.6.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.0...v0.6.1
