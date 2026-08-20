@@ -65,6 +65,8 @@ jobs:
           $logPath = Join-Path $env:LocalAppData "PDF-to-EPUB-OCR\logs\install-error.log"
           if (-not (Test-Path $logPath)) { throw "Installer error log was not created." }
           if ((Get-Content -Raw $logPath) -notmatch "simulated installer failure") { throw "Installer error was not persisted." }
+          # The non-zero exit is expected above; do not let the Actions shell wrapper reuse it.
+          $global:LASTEXITCODE = 0
       - name: Smoke test Windows PowerShell scripts
         shell: powershell
         run: |
