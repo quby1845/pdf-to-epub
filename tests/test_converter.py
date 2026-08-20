@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import threading
 import types
 from pathlib import Path
 from unittest.mock import Mock
@@ -11,6 +12,7 @@ from pdf_to_epub.converter import (
     BookMetadata,
     ConversionError,
     ConversionOptions,
+    ConversionPauseController,
     ConversionProgress,
     _pandoc_command,
     accelerator_backend,
@@ -169,6 +171,29 @@ def test_remaining_time_estimate_waits_for_three_pages() -> None:
     assert (
         estimate_remaining_seconds(elapsed_seconds=90, completed_pages=12, total_pages=12) is None
     )
+
+
+def test_pause_controller_blocks_worker_until_resume() -> None:
+    controller = ConversionPauseController()
+    finished = threading.Event()
+
+    assert controller.pause() is True
+    assert controller.pause() is False
+    assert controller.is_paused is True
+
+    worker = threading.Thread(
+        target=lambda: (controller.wait_if_paused(), finished.set()),
+        daemon=True,
+    )
+    worker.start()
+    assert finished.wait(0.05) is False
+
+    assert controller.resume() is True
+    assert controller.resume() is False
+    assert finished.wait(1) is True
+    worker.join(timeout=1)
+    assert controller.is_paused is False
+    assert controller.paused_seconds >= 0
 
 
 @pytest.mark.parametrize(
@@ -447,7 +472,12 @@ def test_conversion_forwards_options_and_cleans_successful_workdir(
 
     monkeypatch.setattr("pdf_to_epub.converter.create_epub", fake_create)
     progress: list[ConversionProgress] = []
-    result = convert_pdf(options(tmp_path, ocr_size="base", dpi=144), progress.append)
+    pause_controller = ConversionPauseController()
+    result = convert_pdf(
+        options(tmp_path, ocr_size="base", dpi=144),
+        progress.append,
+        pause_controller,
+    )
 
     assert result.epub_path.read_bytes() == b"epub"
     assert result.hyphenation_fixes == 1
@@ -455,6 +485,7 @@ def test_conversion_forwards_options_and_cleans_successful_workdir(
     assert calls["ocr_size"] == "base"
     assert calls["dpi"] == 144
     assert calls["includes_cover"] is True
+    assert calls["aborted"] == pause_controller.wait_if_paused
     assert len(progress) == 8
     assert progress[2] == ConversionProgress(
         "Rendering PDF page", "ocr", current_page=2, total_pages=10, completed_pages=1

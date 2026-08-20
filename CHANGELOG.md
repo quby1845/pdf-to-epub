@@ -7,6 +7,15 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-08-20
+
+### Added
+
+- Add a cooperative **Pause / Resume** control to the Windows desktop app. OCR waits at its next
+  safe checkpoint without discarding completed pages or unloading the model, then continues the
+  same conversion.
+- Exclude paused time from the live remaining-duration estimate.
+
 ## [0.9.0] - 2026-08-20
 
 ### Added
@@ -243,7 +252,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.9.1...HEAD
+[0.9.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.9.0...v0.9.1
 [0.9.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.4...v0.9.0
 [0.8.4]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.2...v0.8.3

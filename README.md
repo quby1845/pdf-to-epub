@@ -173,7 +173,9 @@ the page resolution or crop strategy. During OCR it
 reports the real current page, total
 page count, completion percentage, estimated remaining time after the first three pages, PDF
 rendering, and the first model-load/inference phase from pdf-craft's page events. EPUB and MOBI
-use the complete first PDF page as a dedicated cover. A persistent light/dark theme
+use the complete first PDF page as a dedicated cover. During page OCR, **Pause** stops work at the
+next safe checkpoint without losing completed pages; **Resume** continues the same conversion.
+The model remains loaded in VRAM while paused. A persistent light/dark theme
 toggle updates the complete interface, including native Windows chrome. The modern step-based
 layout uses bundled theme-aware icons, a visual file summary, and clear status feedback; no UI
 assets are fetched from the internet.

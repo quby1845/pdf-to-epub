@@ -15,6 +15,7 @@ def test_icon_set_contains_every_desktop_action() -> None:
         "folder",
         "info",
         "moon",
+        "pause",
         "play",
         "save",
         "scan",

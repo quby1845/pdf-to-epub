@@ -134,6 +134,12 @@ program toplam sayfa sayısını, o anda okunan sayfayı ve tamamlanma yüzdesin
 Üç sayfa tamamlandıktan sonra tahmini kalan süre de gösterilir ve her sayfada yeniden hesaplanır.
 Bir hata olursa pencere ayrıntılı tanı günlüğünün konumunu da gösterir.
 
+Sayfa okunurken **Duraklat** düğmesi kullanılabilir. Program çalışan kısa OCR adımının güvenli
+noktasında beklemeye geçer; tamamlanan sayfalar silinmez ve model ekran kartı belleğinde kalır.
+**Devam et** düğmesine basınca aynı dönüşüm kaldığı yerden sürer. Duraklatılan süre, tahmini kalan
+süre hesabına eklenmez. Bu özellik özellikle uzun kitaplarda bilgisayara soğuma fırsatı vermek
+içindir; duraklatma sırasında VRAM boşaltılmaz.
+
 Program PDF'de satır sonunda bölünmüş `bit-miş` gibi Türkçe kelimeleri EPUB oluşturulurken
 otomatik olarak birleştirir. Gerçek tireli `e-posta` benzeri sözcükleri korumaya çalışır; OCR
 sonucu belgeye göre değişebileceği için oluşan EPUB'ı yine de gözden geçirin.

@@ -17,6 +17,7 @@ from tkinter import filedialog, messagebox, ttk
 from pdf_to_epub import __version__
 from pdf_to_epub.converter import (
     ConversionOptions,
+    ConversionPauseController,
     ConversionProgress,
     ConversionResult,
     check_runtime,
@@ -145,6 +146,9 @@ class PdfToEpubApp:
         self.active_stage = -1
         self.status_kind = "neutral"
         self.converting = False
+        self.paused = False
+        self.pause_controller: ConversionPauseController | None = None
+        self.last_progress: ConversionProgress | None = None
 
         self.pdf_var = tk.StringVar()
         self.output_var = tk.StringVar()
@@ -717,6 +721,18 @@ class PdfToEpubApp:
         )
         self.convert_button.pack(side="right", padx=(20, 0))
 
+        self.pause_button = self._button(
+            action_bar,
+            "Duraklat",
+            self._toggle_pause,
+            padx=18,
+            pady=11,
+            font=("Segoe UI", 10, "bold"),
+            icon="pause",
+        )
+        self.pause_button.configure(state="disabled", cursor="arrow")
+        self.pause_button.pack(side="right", padx=(8, 0))
+
         self.progress = ttk.Progressbar(
             card,
             mode="indeterminate",
@@ -923,16 +939,29 @@ class PdfToEpubApp:
 
         self._hide_result_actions()
         self.last_output = None
+        self.last_progress = None
         self.converting = True
+        self.paused = False
+        pause_controller = ConversionPauseController()
+        self.pause_controller = pause_controller
         self.theme_button.configure(state="disabled", cursor="arrow")
         self.convert_button.configure(state="disabled", text="Dönüştürülüyor…", cursor="arrow")
+        self._configure_pause_button(enabled=False, paused=False)
         self.progress.configure(mode="indeterminate", maximum=100, value=0)
         self.progress.start(12)
         self._set_stage(0)
         self._set_status("Sistem gereksinimleri kontrol ediliyor…")
-        threading.Thread(target=self._convert, args=(options,), daemon=True).start()
+        threading.Thread(
+            target=self._convert,
+            args=(options, pause_controller),
+            daemon=True,
+        ).start()
 
-    def _convert(self, options: ConversionOptions) -> None:
+    def _convert(
+        self,
+        options: ConversionOptions,
+        pause_controller: ConversionPauseController,
+    ) -> None:
         try:
             warning = check_runtime(options.output_format)
             if warning:
@@ -940,6 +969,7 @@ class PdfToEpubApp:
             result = convert_pdf(
                 options,
                 progress=lambda progress: self.events.put(("progress", progress)),
+                pause_controller=pause_controller,
             )
             self.events.put(("success", result))
         except Exception as error:
@@ -964,6 +994,11 @@ class PdfToEpubApp:
         self.root.after(100, self._poll_events)
 
     def _apply_progress(self, progress: ConversionProgress) -> None:
+        self.last_progress = progress
+        can_pause = progress.stage == "ocr" and progress.current_page is not None
+        self._configure_pause_button(enabled=can_pause, paused=self.paused)
+        if self.paused:
+            return
         self._set_status(friendly_progress(progress))
         self._set_stage(progress_stage(progress))
         if progress.total_pages is not None and progress.completed_pages is not None:
@@ -974,10 +1009,53 @@ class PdfToEpubApp:
                 value=progress.completed_pages,
             )
 
+    def _configure_pause_button(self, *, enabled: bool, paused: bool) -> None:
+        text = "Devam et" if paused else "Duraklat"
+        icon = "play" if paused else "pause"
+        self.pause_button.configure(
+            text=text,
+            image=self._icon(icon, self.theme.ink),
+            state="normal" if enabled else "disabled",
+            cursor="hand2" if enabled else "arrow",
+        )
+
+    def _toggle_pause(self) -> None:
+        controller = self.pause_controller
+        if not self.converting or controller is None:
+            return
+        if controller.is_paused:
+            controller.resume()
+            self.paused = False
+            self._configure_pause_button(enabled=True, paused=False)
+            if self.last_progress is not None:
+                self._apply_progress(self.last_progress)
+                if self.last_progress.total_pages is None:
+                    self.progress.start(12)
+            else:
+                self.progress.start(12)
+            return
+
+        controller.pause()
+        self.paused = True
+        self.progress.stop()
+        self._configure_pause_button(enabled=True, paused=True)
+        self._set_status(
+            "Dönüştürme duraklatıldı. Devam et düğmesiyle aynı yerden sürdürebilirsiniz.",
+            kind="warning",
+        )
+
+    def _reset_pause_state(self) -> None:
+        if self.pause_controller is not None:
+            self.pause_controller.resume()
+        self.pause_controller = None
+        self.paused = False
+        self._configure_pause_button(enabled=False, paused=False)
+
     def _finish_success(self, result: ConversionResult) -> None:
         self.progress.stop()
         self.progress.configure(mode="determinate", maximum=100, value=100)
         self.converting = False
+        self._reset_pause_state()
         self.theme_button.configure(state="normal", cursor="hand2")
         self.convert_button.configure(state="normal", text="Dönüştür", cursor="hand2")
         self.last_output = Path(result.output_path)
@@ -993,6 +1071,7 @@ class PdfToEpubApp:
     def _finish_error(self, message: str) -> None:
         self.progress.stop()
         self.converting = False
+        self._reset_pause_state()
         self.theme_button.configure(state="normal", cursor="hand2")
         self.convert_button.configure(state="normal", text="Tekrar dene", cursor="hand2")
         self._set_status(f"Dönüştürme tamamlanamadı: {message}", kind="error")

@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -175,6 +176,53 @@ class ConversionProgress:
         if not self.total_pages or self.completed_pages is None:
             return None
         return min(100, max(0, round(self.completed_pages * 100 / self.total_pages)))
+
+
+class ConversionPauseController:
+    """Thread-safe cooperative pause gate used by pdf-craft's abort checkpoints."""
+
+    def __init__(self) -> None:
+        self._running = threading.Event()
+        self._running.set()
+        self._lock = threading.Lock()
+        self._paused_at: float | None = None
+        self._paused_seconds = 0.0
+
+    @property
+    def is_paused(self) -> bool:
+        return not self._running.is_set()
+
+    @property
+    def paused_seconds(self) -> float:
+        with self._lock:
+            current_pause = 0.0
+            if self._paused_at is not None:
+                current_pause = time.monotonic() - self._paused_at
+            return self._paused_seconds + current_pause
+
+    def pause(self) -> bool:
+        """Pause at the next cooperative checkpoint; return whether state changed."""
+        with self._lock:
+            if self._paused_at is not None:
+                return False
+            self._paused_at = time.monotonic()
+            self._running.clear()
+            return True
+
+    def resume(self) -> bool:
+        """Release a paused conversion; return whether state changed."""
+        with self._lock:
+            if self._paused_at is None:
+                return False
+            self._paused_seconds += time.monotonic() - self._paused_at
+            self._paused_at = None
+            self._running.set()
+            return True
+
+    def wait_if_paused(self) -> bool:
+        """Block the OCR worker while paused and always report 'not aborted' upstream."""
+        self._running.wait()
+        return False
 
 
 class _OCREventLike(Protocol):
@@ -638,10 +686,12 @@ def create_mobi(
 def convert_pdf(
     options: ConversionOptions,
     progress: Callable[[ConversionProgress], None] | None = None,
+    pause_controller: ConversionPauseController | None = None,
 ) -> ConversionResult:
     """Run pdf-craft OCR, repair Markdown, and publish the selected e-book format."""
     validate_options(options)
     report = progress or (lambda _progress: None)
+    pause = pause_controller or ConversionPauseController()
     options.output_path.parent.mkdir(parents=True, exist_ok=True)
     options.models_dir.mkdir(parents=True, exist_ok=True)
     if options.work_parent is not None:
@@ -702,7 +752,7 @@ def convert_pdf(
                 message = "Completed PDF page"
                 completed_pages = current_page
             remaining_seconds = estimate_remaining_seconds(
-                elapsed_seconds=now - ocr_started_at,
+                elapsed_seconds=max(0.0, now - ocr_started_at - pause.paused_seconds),
                 completed_pages=completed_pages,
                 total_pages=total_pages,
             )
@@ -726,9 +776,11 @@ def convert_pdf(
             models_cache_path=str(options.models_dir),
             dpi=options.dpi,
             includes_cover=options.output_format in {"epub", "mobi"},
+            aborted=pause.wait_if_paused,
             on_ocr_event=on_ocr_event,
         )
 
+        pause.wait_if_paused()
         report(ConversionProgress("Repairing line-end hyphenation", "cleanup"))
         fixes = fix_hyphenation_file(markdown_path, language=options.metadata.language)
         table_fixes = cleanup_ocr_tables_file(markdown_path)
@@ -739,6 +791,7 @@ def convert_pdf(
             if ebook_cover is None:
                 logger.warning("The OCR pipeline did not produce a dedicated first-page cover.")
         if options.output_format == "markdown":
+            pause.wait_if_paused()
             report(ConversionProgress("Writing Markdown output", "epub"))
             export_markdown(
                 markdown_path,
@@ -747,6 +800,7 @@ def convert_pdf(
                 overwrite=options.overwrite,
             )
         elif options.output_format == "mobi":
+            pause.wait_if_paused()
             report(ConversionProgress("Building MOBI with Calibre", "epub"))
             create_mobi(
                 markdown_path,
@@ -756,6 +810,7 @@ def convert_pdf(
                 ebook_cover,
             )
         else:
+            pause.wait_if_paused()
             report(ConversionProgress("Building EPUB with Pandoc", "epub"))
             create_epub(
                 markdown_path,
