@@ -574,7 +574,7 @@ class PdfToEpubApp:
         model_box.grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=(8, 0))
         tk.Label(
             model_box,
-            text="OCR kalitesi",
+            text="Sayfa işleme modu",
             font=("Segoe UI", 9, "bold"),
             foreground=theme.ink,
             background=theme.card,

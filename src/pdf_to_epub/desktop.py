@@ -38,11 +38,23 @@ DEFAULT_OUTPUT_FORMAT_LABEL = "EPUB — modern e-kitap (önerilen)"
 ThemeName = Literal["light", "dark"]
 
 _MODEL_DESCRIPTIONS = {
-    "tiny": "Tahmini ≈7 GB. En hızlıdır; küçük yazılarda kalite düşebilir.",
-    "small": "Tahmini ≈7,5 GB. Temiz taramalarda hızlı ve yeterli olabilir.",
-    "base": "Tahmini ≈8 GB. Temiz taramalar ve 8 GB kartlar için güvenli seçimdir.",
-    "large": "Tahmini ≈8 GB+. Önerilen kalite/hız dengesidir; diğer GPU uygulamalarını kapatın.",
-    "gundam": "Tahmini ≈10 GB+. Kırpma kullanır; tepe tüketimi sayfaya göre değişir.",
+    "tiny": (
+        "Aynı 6,5 GB OCR motoru, 512 px. En hızlı sayfa modudur; küçük yazıları "
+        "kaçırabilir. Tahmini ≈7 GB."
+    ),
+    "small": (
+        "Aynı 6,5 GB OCR motoru, 640 px. Temiz ve büyük yazılı taramalarda hızlıdır. "
+        "Tahmini ≈7,5 GB."
+    ),
+    "base": "Aynı 6,5 GB OCR motoru, 1024 px. Temiz taramalarda dengeli seçimdir. Tahmini ≈8 GB.",
+    "large": (
+        "Aynı 6,5 GB OCR motoru, 1280 px. Küçük yazılar için önerilen kalite/hız "
+        "dengesidir. Tahmini ≈8 GB+."
+    ),
+    "gundam": (
+        "Aynı 6,5 GB OCR motoru, sayfayı kırparak işler. Karmaşık düzenlerde daha doğru "
+        "fakat daha yavaştır. Tahmini ≈10 GB+."
+    ),
 }
 
 _PROGRESS_TRANSLATIONS = {
@@ -54,7 +66,20 @@ _PROGRESS_TRANSLATIONS = {
     "Building EPUB with Pandoc": "EPUB dosyası hazırlanıyor",
     "Writing Markdown output": "Markdown dosyası ve görseller hazırlanıyor",
     "Building MOBI with Calibre": "MOBI dosyası Calibre ile hazırlanıyor",
+    "Embedding full-page cover": "PDF'nin ilk sayfası tam kapak olarak ekleniyor",
 }
+
+
+def _format_remaining_time(seconds: float | None) -> str:
+    if seconds is None:
+        return ""
+    minutes = max(1, round(seconds / 60))
+    hours, remaining_minutes = divmod(minutes, 60)
+    if hours and remaining_minutes:
+        return f" — tahmini {hours} sa {remaining_minutes} dk kaldı"
+    if hours:
+        return f" — tahmini {hours} sa kaldı"
+    return f" — tahmini {minutes} dk kaldı"
 
 
 def theme_preference_path() -> Path:
@@ -152,24 +177,26 @@ def friendly_progress(progress: ConversionProgress | str) -> str:
     if isinstance(progress, ConversionProgress):
         if progress.current_page is not None and progress.total_pages is not None:
             percentage = progress.percentage or 0
+            remaining = _format_remaining_time(progress.estimated_remaining_seconds)
             if progress.message == "Rendering PDF page":
                 return (
                     f"{progress.total_pages} sayfanın {progress.current_page}. "
                     "sayfası hazırlanıyor "
-                    f"(%{percentage})"
+                    f"(%{percentage}){remaining}"
                 )
             if progress.message == "Loading OCR model and processing PDF page":
                 if progress.current_page == 1:
                     return (
                         "OCR modeli GPU'ya yükleniyor ve ilk sayfa işleniyor "
-                        f"(1 / {progress.total_pages}, %{percentage})"
+                        f"(1 / {progress.total_pages}, %{percentage}){remaining}"
                     )
                 return (
                     f"{progress.total_pages} sayfanın {progress.current_page}. sayfası OCR ile "
-                    f"işleniyor (%{percentage})"
+                    f"işleniyor (%{percentage}){remaining}"
                 )
             return (
-                f"{progress.current_page} / {progress.total_pages} sayfa tamamlandı (%{percentage})"
+                f"{progress.current_page} / {progress.total_pages} sayfa tamamlandı "
+                f"(%{percentage}){remaining}"
             )
         message = progress.message
     else:
@@ -189,6 +216,7 @@ def progress_stage(progress: ConversionProgress | str) -> int:
         "Building EPUB with Pandoc": 2,
         "Writing Markdown output": 2,
         "Building MOBI with Calibre": 2,
+        "Embedding full-page cover": 2,
     }
     return stages.get(message, 0)
 
@@ -197,7 +225,7 @@ def model_description(model_label: str) -> str:
     """Return short, non-technical guidance for a desktop model choice."""
     model = MODEL_LABELS.get(model_label)
     if model is None:
-        return "OCR modelini seçin."
+        return "Sayfa işleme modunu seçin."
     return _MODEL_DESCRIPTIONS[model]
 
 

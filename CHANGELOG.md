@@ -7,6 +7,25 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-08-20
+
+### Added
+
+- Use the complete first PDF page as the dedicated EPUB/MOBI cover instead of relying on an OCR
+  crop.
+- Show an estimated remaining duration after three completed pages and continuously refine it as
+  conversion progresses.
+
+### Changed
+
+- Rename the desktop selector from OCR quality to page processing mode and explain that every mode
+  uses the same 6.5 GB OCR engine while changing page resolution/cropping.
+
+### Fixed
+
+- Conservatively flatten prose that OCR clearly misclassified as a mostly empty table and remove
+  literal `None` placeholders, while preserving ordinary data tables.
+
 ## [0.8.4] - 2026-08-20
 
 ### Fixed
@@ -224,7 +243,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.4...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.4...v0.9.0
 [0.8.4]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.1...v0.8.2

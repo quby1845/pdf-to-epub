@@ -39,7 +39,9 @@ settings. PDF to EPUB OCR provides a reproducible command-line workflow for scan
 - local DeepSeek OCR through pdf-craft;
 - document layout and reading-order detection;
 - image preservation and a generated table of contents;
+- a complete first-page cover for EPUB and MOBI outputs;
 - repair of common line-end hyphenation artifacts;
+- conservative cleanup of prose misclassified as mostly empty `None` tables;
 - EPUB, editable Markdown, and legacy MOBI outputs;
 - configurable language, metadata, OCR model, DPI, and stylesheet;
 - a non-interactive CLI suitable for repeatable conversions.
@@ -164,11 +166,14 @@ metadata was prepared. Installation from PyPI will be documented after the first
 ## Usage
 
 For most Windows users, open the desktop shortcut created by `KURULUM.bat`. The graphical app
-provides file selection, book metadata, EPUB/Markdown/MOBI output choices, OCR quality choices,
-progress updates, and actionable error messages without requiring a terminal. During OCR it
+provides file selection, book metadata, EPUB/Markdown/MOBI output choices, page processing modes,
+progress updates, and actionable error messages without requiring a terminal. The interface calls
+these choices **page processing modes**: all five use the same 6.5 GB OCR engine, while changing
+the page resolution or crop strategy. During OCR it
 reports the real current page, total
-page count, completion percentage, PDF rendering, and the first model-load/inference phase from
-pdf-craft's page events. A persistent light/dark theme
+page count, completion percentage, estimated remaining time after the first three pages, PDF
+rendering, and the first model-load/inference phase from pdf-craft's page events. EPUB and MOBI
+use the complete first PDF page as a dedicated cover. A persistent light/dark theme
 toggle updates the complete interface, including native Windows chrome. The modern step-based
 layout uses bundled theme-aware icons, a visual file summary, and clear status feedback; no UI
 assets are fetched from the internet.

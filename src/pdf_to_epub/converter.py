@@ -12,6 +12,7 @@ import tempfile
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from html import unescape
 from pathlib import Path
 from typing import Literal, Protocol
 
@@ -23,6 +24,9 @@ _MINIMUM_TOTAL_VRAM_GIB = 7.0
 _MINIMUM_START_VRAM_GIB = 5.5
 _MINIMUM_FREE_VRAM_GIB = 6.5
 _OUTPUT_EXTENSIONS = {"epub": ".epub", "markdown": ".md", "mobi": ".mobi"}
+_PIPE_TABLE_PATTERN = re.compile(r"(?:^[ \t]*\|.*\|[ \t]*$\n?){2,}", re.MULTILINE)
+_HTML_TABLE_PATTERN = re.compile(r"<table\b[^>]*>.*?</table>", re.IGNORECASE | re.DOTALL)
+_HTML_CELL_PATTERN = re.compile(r"<(?:td|th)\b[^>]*>(.*?)</(?:td|th)>", re.IGNORECASE | re.DOTALL)
 
 _LETTER = r"[^\W\d_]"
 _VISIBLE_HYPHENS = r"\-\u2010\u2011"
@@ -164,6 +168,7 @@ class ConversionProgress:
     current_page: int | None = None
     total_pages: int | None = None
     completed_pages: int | None = None
+    estimated_remaining_seconds: float | None = None
 
     @property
     def percentage(self) -> int | None:
@@ -269,6 +274,99 @@ def fix_hyphenation_file(markdown_path: Path, language: str = "en") -> int:
     fixed, count = fix_hyphenation(original, language=language)
     markdown_path.write_text(fixed, encoding="utf-8")
     return count
+
+
+def _plain_table_cell(cell: str) -> str:
+    with_breaks = re.sub(r"<br\s*/?>", "\n", cell, flags=re.IGNORECASE)
+    without_tags = re.sub(r"<[^>]+>", "", with_breaks)
+    return unescape(without_tags).strip()
+
+
+def _is_placeholder_cell(cell: str) -> bool:
+    return not cell.strip() or _plain_table_cell(cell).casefold() == "none"
+
+
+def _looks_like_misclassified_prose_table(cells: list[str]) -> bool:
+    """Detect the narrow OCR failure that puts one paragraph among empty/None cells."""
+    if len(cells) < 3:
+        return False
+    placeholders = sum(_is_placeholder_cell(cell) for cell in cells)
+    meaningful = [_plain_table_cell(cell) for cell in cells if not _is_placeholder_cell(cell)]
+    if placeholders < 2 or placeholders * 2 < len(cells) or not meaningful:
+        return False
+    longest_word_count = max(len(re.findall(r"\w+", cell, flags=re.UNICODE)) for cell in meaningful)
+    return longest_word_count >= 8
+
+
+def _pipe_table_cells(line: str) -> list[str]:
+    stripped = line.strip()
+    if not stripped.startswith("|") or not stripped.endswith("|"):
+        return []
+    return [cell.strip() for cell in stripped[1:-1].split("|")]
+
+
+def _is_pipe_separator(cells: list[str]) -> bool:
+    return bool(cells) and all(re.fullmatch(r":?-{3,}:?", cell) for cell in cells)
+
+
+def cleanup_ocr_tables(text: str) -> tuple[str, int]:
+    """Flatten obvious prose-as-table OCR mistakes and remove literal None placeholders."""
+    fixes = 0
+
+    def replace_pipe_table(match: re.Match[str]) -> str:
+        nonlocal fixes
+        block = match.group(0)
+        lines = block.rstrip("\n").splitlines()
+        if len(lines) < 2 or not _is_pipe_separator(_pipe_table_cells(lines[1])):
+            return block
+        cells = [
+            cell
+            for index, line in enumerate(lines)
+            if index != 1
+            for cell in _pipe_table_cells(line)
+        ]
+        if _looks_like_misclassified_prose_table(cells):
+            fixes += 1
+            paragraphs = [
+                _plain_table_cell(cell) for cell in cells if not _is_placeholder_cell(cell)
+            ]
+            suffix = "\n" if block.endswith("\n") else ""
+            return "\n\n".join(paragraphs) + suffix
+        return block
+
+    def replace_html_table(match: re.Match[str]) -> str:
+        nonlocal fixes
+        block = match.group(0)
+        raw_cells = _HTML_CELL_PATTERN.findall(block)
+        if _looks_like_misclassified_prose_table(raw_cells):
+            fixes += 1
+            paragraphs = [
+                _plain_table_cell(cell) for cell in raw_cells if not _is_placeholder_cell(cell)
+            ]
+            return "\n\n".join(paragraphs)
+        return block
+
+    cleaned = _PIPE_TABLE_PATTERN.sub(replace_pipe_table, text)
+    cleaned = _HTML_TABLE_PATTERN.sub(replace_html_table, cleaned)
+    return cleaned, fixes
+
+
+def cleanup_ocr_tables_file(markdown_path: Path) -> int:
+    if not markdown_path.is_file():
+        raise ConversionError(f"Generated Markdown was not found: {markdown_path}")
+    original = markdown_path.read_text(encoding="utf-8")
+    fixed, count = cleanup_ocr_tables(original)
+    markdown_path.write_text(fixed, encoding="utf-8")
+    return count
+
+
+def estimate_remaining_seconds(
+    *, elapsed_seconds: float, completed_pages: int, total_pages: int
+) -> float | None:
+    """Estimate remaining OCR time after enough completed pages to reduce first-page noise."""
+    if elapsed_seconds < 0 or completed_pages < 3 or total_pages <= completed_pages:
+        return None
+    return elapsed_seconds * (total_pages - completed_pages) / completed_pages
 
 
 def validate_options(options: ConversionOptions) -> None:
@@ -438,6 +536,7 @@ def _pandoc_command(
     epub_path: Path,
     metadata: BookMetadata,
     css_path: Path | None,
+    cover_path: Path | None = None,
 ) -> list[str]:
     command = [
         "pandoc",
@@ -456,6 +555,8 @@ def _pandoc_command(
         command.append(f"--metadata=publisher:{metadata.publisher}")
     if css_path is not None:
         command.append(f"--css={css_path}")
+    if cover_path is not None:
+        command.append(f"--epub-cover-image={cover_path}")
     return command
 
 
@@ -464,8 +565,9 @@ def create_epub(
     epub_path: Path,
     metadata: BookMetadata,
     css_path: Path | None,
+    cover_path: Path | None = None,
 ) -> None:
-    command = _pandoc_command(markdown_path, epub_path, metadata, css_path)
+    command = _pandoc_command(markdown_path, epub_path, metadata, css_path, cover_path)
     try:
         result = subprocess.run(command, capture_output=True, text=True, check=False)
     except OSError as error:
@@ -507,6 +609,7 @@ def create_mobi(
     mobi_path: Path,
     metadata: BookMetadata,
     css_path: Path | None,
+    cover_path: Path | None = None,
 ) -> None:
     """Build an EPUB with Pandoc and convert it to legacy MOBI with Calibre."""
     ebook_convert = find_ebook_convert()
@@ -515,7 +618,7 @@ def create_mobi(
             "Calibre ebook-convert was not found. Run KURULUM.bat again to enable MOBI output."
         )
     intermediate_epub = markdown_path.with_name("mobi-source.epub")
-    create_epub(markdown_path, intermediate_epub, metadata, css_path)
+    create_epub(markdown_path, intermediate_epub, metadata, css_path, cover_path)
     try:
         result = subprocess.run(
             [ebook_convert, str(intermediate_epub), str(mobi_path)],
@@ -552,7 +655,10 @@ def convert_pdf(
     )
     markdown_path = work_dir / "book.md"
     assets_path = work_dir / "assets"
+    analysis_path = work_dir / "analysis"
+    cover_path = analysis_path / "cover.png"
     start = time.monotonic()
+    ocr_started_at: float | None = None
 
     try:
         copy_cache = configure_huggingface_cache(options.models_dir)
@@ -576,9 +682,13 @@ def convert_pdf(
         report(ConversionProgress("Converting PDF to Markdown with OCR", "ocr"))
 
         def on_ocr_event(event: _OCREventLike) -> None:
+            nonlocal ocr_started_at
             kind = getattr(getattr(event, "kind", None), "name", "")
             if kind not in {"START", "RENDERED", "COMPLETE", "FAILED", "SKIP", "IGNORE"}:
                 return
+            now = time.monotonic()
+            if ocr_started_at is None:
+                ocr_started_at = now
             current_page = event.page_index
             total_pages = event.total_pages
             logger.info("OCR event: kind=%s page=%s total=%s", kind, current_page, total_pages)
@@ -591,6 +701,11 @@ def convert_pdf(
             else:
                 message = "Completed PDF page"
                 completed_pages = current_page
+            remaining_seconds = estimate_remaining_seconds(
+                elapsed_seconds=now - ocr_started_at,
+                completed_pages=completed_pages,
+                total_pages=total_pages,
+            )
             report(
                 ConversionProgress(
                     message=message,
@@ -598,6 +713,7 @@ def convert_pdf(
                     current_page=current_page,
                     total_pages=total_pages,
                     completed_pages=completed_pages,
+                    estimated_remaining_seconds=remaining_seconds,
                 )
             )
 
@@ -605,15 +721,23 @@ def convert_pdf(
             pdf_path=str(options.pdf_path),
             markdown_path=str(markdown_path),
             markdown_assets_path=str(assets_path),
-            analysing_path=str(work_dir / "analysis"),
+            analysing_path=str(analysis_path),
             ocr_size=options.ocr_size,
             models_cache_path=str(options.models_dir),
             dpi=options.dpi,
+            includes_cover=options.output_format in {"epub", "mobi"},
             on_ocr_event=on_ocr_event,
         )
 
         report(ConversionProgress("Repairing line-end hyphenation", "cleanup"))
         fixes = fix_hyphenation_file(markdown_path, language=options.metadata.language)
+        table_fixes = cleanup_ocr_tables_file(markdown_path)
+        logger.info("OCR cleanup: hyphenation_fixes=%s table_fixes=%s", fixes, table_fixes)
+        ebook_cover = cover_path if cover_path.is_file() else None
+        if options.output_format in {"epub", "mobi"}:
+            report(ConversionProgress("Embedding full-page cover", "epub"))
+            if ebook_cover is None:
+                logger.warning("The OCR pipeline did not produce a dedicated first-page cover.")
         if options.output_format == "markdown":
             report(ConversionProgress("Writing Markdown output", "epub"))
             export_markdown(
@@ -624,10 +748,22 @@ def convert_pdf(
             )
         elif options.output_format == "mobi":
             report(ConversionProgress("Building MOBI with Calibre", "epub"))
-            create_mobi(markdown_path, options.output_path, options.metadata, options.css_path)
+            create_mobi(
+                markdown_path,
+                options.output_path,
+                options.metadata,
+                options.css_path,
+                ebook_cover,
+            )
         else:
             report(ConversionProgress("Building EPUB with Pandoc", "epub"))
-            create_epub(markdown_path, options.output_path, options.metadata, options.css_path)
+            create_epub(
+                markdown_path,
+                options.output_path,
+                options.metadata,
+                options.css_path,
+                ebook_cover,
+            )
         return ConversionResult(
             epub_path=options.output_path,
             work_dir=work_dir,

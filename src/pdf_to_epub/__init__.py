@@ -1,3 +1,3 @@
 """Public package metadata for PDF to EPUB OCR."""
 
-__version__ = "0.8.4"
+__version__ = "0.9.0"

@@ -19,8 +19,9 @@ kitabın sayfaları bir metin API'sine gönderilmez.
 Program CPU ile dönüşümü desteklemez. NVIDIA kartlar CUDA, desteklenen AMD kartlar ROCm kullanır.
 6 GB kartlar mevcut sıkıştırılmamış modeli güvenilir biçimde çalıştıramaz. 8 GB kartlarda diğer
 GPU uygulamalarını kapatmak gerekebilir; daha fazla VRAM daha
-rahat çalışır. OCR kalite seçeneği 6,5 GB model indirmesinin ve ana modelin bellekteki boyutunu
-değil, sayfaların işlenme çözünürlüğünü ve ek çalışma belleğini değiştirir.
+rahat çalışır. Arayüzdeki sayfa işleme modu 6,5 GB model indirmesinin ve ana modelin bellekteki
+boyutunu değil, sayfaların işlenme çözünürlüğünü, kırpma yöntemini ve ek çalışma belleğini
+değiştirir.
 
 ## Üç adımda kurulum
 
@@ -109,13 +110,14 @@ isterseniz `docker compose down --volumes` kullanın.
 2. **PDF seç** düğmesiyle kitabınızı seçin.
 3. Kitap adı, yazar ve dili kontrol edin.
 4. **Çıktı biçimi** alanından EPUB, Markdown veya MOBI seçin.
-5. OCR modeli olarak önce **large — dengeli** seçeneğini deneyin.
+5. **Sayfa işleme modu** olarak önce **large — dengeli** seçeneğini deneyin.
 6. **Dönüştür** düğmesine basın.
 
 EPUB çoğu telefon, tablet ve güncel e-kitap okuyucu için önerilen biçimdir. Markdown seçildiğinde
 düzenlenebilir `.md` dosyası ile görseller için aynı klasörde `<kitap_adı>_assets` klasörü
 oluşturulur. MOBI, eski Kindle cihazları veya eski iş akışları içindir ve Calibre bileşenini
-kullanır.
+kullanır. EPUB ve MOBI çıktılarında PDF'nin ilk sayfası kırpılmadan, tam sayfa kapak olarak
+eklenir.
 
 Sağ üstteki **Koyu tema** düğmesiyle görünümü değiştirebilirsiniz. Seçiminiz hatırlanır ve program
 bir sonraki açılışta aynı temayı kullanır. Dönüşüm sürerken yanlışlıkla arayüzü yenilememek için
@@ -129,13 +131,18 @@ arayüz açılırken internetten hiçbir görsel indirilmez.
 bittiğinde seçilen çıktı varsayılan olarak PDF'nin bulunduğu klasöre kaydedilir. Sayfa okuma başlayınca
 program toplam sayfa sayısını, o anda okunan sayfayı ve tamamlanma yüzdesini canlı gösterir.
 İlk sayfada PDF hazırlama, modelin GPU'ya yüklenmesi ve OCR aşamaları ayrı mesajlarla belirtilir.
+Üç sayfa tamamlandıktan sonra tahmini kalan süre de gösterilir ve her sayfada yeniden hesaplanır.
 Bir hata olursa pencere ayrıntılı tanı günlüğünün konumunu da gösterir.
 
 Program PDF'de satır sonunda bölünmüş `bit-miş` gibi Türkçe kelimeleri EPUB oluşturulurken
 otomatik olarak birleştirir. Gerçek tireli `e-posta` benzeri sözcükleri korumaya çalışır; OCR
 sonucu belgeye göre değişebileceği için oluşan EPUB'ı yine de gözden geçirin.
 
-## Hangi OCR modelini seçmeliyim?
+OCR normal bir paragrafı yanlışlıkla çoğu hücresi boş veya `None` olan bir tabloya dönüştürürse
+program bu belirgin hatayı düz metne çevirir. Gerçek veri tabloları korunur; karmaşık sayfa düzenleri
+için son çıktıyı yine de kontrol edin.
+
+## Hangi sayfa işleme modunu seçmeliyim?
 
 | Model | İşleme boyutu | Tahmini toplam VRAM | Ne zaman kullanılır? |
 | --- | ---: | ---: | --- |

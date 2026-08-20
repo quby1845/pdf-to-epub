@@ -15,9 +15,11 @@ from pdf_to_epub.converter import (
     _pandoc_command,
     accelerator_backend,
     check_runtime,
+    cleanup_ocr_tables,
     convert_pdf,
     create_epub,
     create_mobi,
+    estimate_remaining_seconds,
     export_markdown,
     fix_hyphenation,
     fix_hyphenation_file,
@@ -128,6 +130,47 @@ def test_fix_hyphenation_file_requires_generated_markdown(tmp_path: Path) -> Non
         fix_hyphenation_file(tmp_path / "missing.md")
 
 
+def test_cleanup_ocr_tables_flattens_only_obvious_prose_misclassification() -> None:
+    text = (
+        "Before\n\n"
+        "| None | This is a normal paragraph with enough words to be prose, not tabular data. |\n"
+        "| --- | --- |\n"
+        "| None | None |\n\n"
+        "| Name | Value |\n"
+        "| --- | --- |\n"
+        "| Alice | None |\n"
+    )
+    fixed, count = cleanup_ocr_tables(text)
+
+    assert "This is a normal paragraph" in fixed
+    assert "| None | This is" not in fixed
+    assert "| Name | Value |" in fixed
+    assert "| Alice | None |" in fixed
+    assert count == 1
+
+
+def test_cleanup_ocr_tables_handles_html_and_preserves_real_tables() -> None:
+    broken = (
+        "<table><tr><td>None</td><td>A long paragraph that was incorrectly placed inside "
+        "a table by the OCR layout detector.</td></tr><tr><td>None</td><td>None</td></tr></table>"
+    )
+    real = "<table><tr><th>Name</th><th>Value</th></tr><tr><td>A</td><td>1</td></tr></table>"
+    fixed, count = cleanup_ocr_tables(f"{broken}\n\n{real}")
+
+    assert "<table>" not in fixed.split("\n\n", maxsplit=1)[0]
+    assert "incorrectly placed" in fixed
+    assert real in fixed
+    assert count == 1
+
+
+def test_remaining_time_estimate_waits_for_three_pages() -> None:
+    assert estimate_remaining_seconds(elapsed_seconds=60, completed_pages=2, total_pages=10) is None
+    assert estimate_remaining_seconds(elapsed_seconds=90, completed_pages=3, total_pages=12) == 270
+    assert (
+        estimate_remaining_seconds(elapsed_seconds=90, completed_pages=12, total_pages=12) is None
+    )
+
+
 @pytest.mark.parametrize(
     ("change", "message"),
     [
@@ -166,10 +209,14 @@ def test_pandoc_command_contains_metadata_resources_and_css(tmp_path: Path) -> N
     markdown = tmp_path / "work" / "book.md"
     epub = tmp_path / "book.epub"
     css = tmp_path / "reader.css"
-    command = _pandoc_command(markdown, epub, BookMetadata("Title", "Author", "Press", "tr"), css)
+    cover = tmp_path / "cover.jpg"
+    command = _pandoc_command(
+        markdown, epub, BookMetadata("Title", "Author", "Press", "tr"), css, cover
+    )
     assert f"--resource-path={markdown.parent}" in command
     assert "--metadata=publisher:Press" in command
     assert f"--css={css}" in command
+    assert f"--epub-cover-image={cover}" in command
 
 
 def test_create_epub_reports_pandoc_errors(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -227,7 +274,13 @@ def test_create_mobi_uses_calibre_and_checks_result(
     mobi = tmp_path / "book.mobi"
     monkeypatch.setattr("pdf_to_epub.converter.find_ebook_convert", lambda: "ebook-convert")
 
-    def fake_epub(_markdown: Path, epub: Path, _metadata: BookMetadata, _css: Path | None) -> None:
+    def fake_epub(
+        _markdown: Path,
+        epub: Path,
+        _metadata: BookMetadata,
+        _css: Path | None,
+        _cover: Path | None = None,
+    ) -> None:
         epub.write_bytes(b"epub")
 
     def fake_run(command: list[str], **_kwargs: object) -> types.SimpleNamespace:
@@ -371,16 +424,25 @@ def test_conversion_forwards_options_and_cleans_successful_workdir(
             )
         )
         Path(str(kwargs["markdown_path"])).write_text("hy-\nphen", encoding="utf-8")
+        analysis = Path(str(kwargs["analysing_path"]))
+        analysis.mkdir(parents=True, exist_ok=True)
+        (analysis / "cover.png").write_bytes(b"cover")
 
     fake_module = types.SimpleNamespace(transform_markdown=transform_markdown)
     monkeypatch.setitem(sys.modules, "pdf_craft", fake_module)
 
     def fake_create(
-        markdown_path: Path, epub_path: Path, metadata: BookMetadata, css_path: Path | None
+        markdown_path: Path,
+        epub_path: Path,
+        metadata: BookMetadata,
+        css_path: Path | None,
+        cover_path: Path | None,
     ) -> None:
         assert markdown_path.read_text(encoding="utf-8") == "hyphen"
         assert metadata.title == "A Book"
         assert css_path is None
+        assert cover_path is not None
+        assert cover_path.read_bytes() == b"cover"
         epub_path.write_bytes(b"epub")
 
     monkeypatch.setattr("pdf_to_epub.converter.create_epub", fake_create)
@@ -392,7 +454,8 @@ def test_conversion_forwards_options_and_cleans_successful_workdir(
     assert not result.work_dir.exists()
     assert calls["ocr_size"] == "base"
     assert calls["dpi"] == 144
-    assert len(progress) == 7
+    assert calls["includes_cover"] is True
+    assert len(progress) == 8
     assert progress[2] == ConversionProgress(
         "Rendering PDF page", "ocr", current_page=2, total_pages=10, completed_pages=1
     )
@@ -409,6 +472,7 @@ def test_conversion_can_publish_markdown_with_assets(
     monkeypatch.setattr("pdf_to_epub.converter.configure_huggingface_cache", lambda _path: True)
 
     def transform_markdown(**kwargs: object) -> None:
+        assert kwargs["includes_cover"] is False
         markdown = Path(str(kwargs["markdown_path"]))
         assets = Path(str(kwargs["markdown_assets_path"]))
         assets.mkdir(parents=True)
@@ -433,9 +497,21 @@ def test_conversion_can_publish_mobi(monkeypatch: pytest.MonkeyPatch, tmp_path: 
     monkeypatch.setattr("pdf_to_epub.converter.configure_huggingface_cache", lambda _path: True)
 
     def transform_markdown(**kwargs: object) -> None:
+        assert kwargs["includes_cover"] is True
         Path(str(kwargs["markdown_path"])).write_text("# Book", encoding="utf-8")
+        analysis = Path(str(kwargs["analysing_path"]))
+        analysis.mkdir(parents=True, exist_ok=True)
+        (analysis / "cover.png").write_bytes(b"cover")
 
-    def fake_mobi(_markdown: Path, mobi: Path, _metadata: BookMetadata, _css: Path | None) -> None:
+    def fake_mobi(
+        _markdown: Path,
+        mobi: Path,
+        _metadata: BookMetadata,
+        _css: Path | None,
+        cover: Path | None,
+    ) -> None:
+        assert cover is not None
+        assert cover.read_bytes() == b"cover"
         mobi.write_bytes(b"mobi")
 
     monkeypatch.setitem(

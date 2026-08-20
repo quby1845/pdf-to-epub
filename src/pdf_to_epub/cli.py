@@ -48,7 +48,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--ocr-size",
         choices=("tiny", "small", "base", "large", "gundam"),
         default="gundam",
-        help="OCR model size (default: gundam)",
+        help="page processing mode; every mode uses the same OCR engine (default: gundam)",
     )
     parser.add_argument("--dpi", type=int, default=300, help="render DPI, 72-600 (default: 300)")
     style_group = parser.add_mutually_exclusive_group()

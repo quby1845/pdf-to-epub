@@ -157,7 +157,7 @@ def test_desktop_model_guidance_and_progress_stages() -> None:
     assert "≈8 GB+" in model_description(DEFAULT_MODEL_LABEL)
     assert "≈7 GB" in model_description(next(iter(MODEL_LABELS)))
     assert "≈7,5 GB" in model_description(list(MODEL_LABELS)[1])
-    assert model_description("not-a-model") == "OCR modelini seçin."
+    assert model_description("not-a-model") == "Sayfa işleme modunu seçin."
     assert progress_stage("Checking and downloading OCR models") == 0
     assert progress_stage("Converting PDF to Markdown with OCR") == 1
     assert progress_stage("Building EPUB with Pandoc") == 2
@@ -173,6 +173,9 @@ def test_desktop_formats_live_page_progress() -> None:
     assert "GPU'ya yükleniyor" in friendly_progress(loading)
     assert friendly_progress(completed) == "84 / 327 sayfa tamamlandı (%26)"
     assert progress_stage(reading) == 1
+
+    estimated = ConversionProgress("Completed PDF page", "ocr", 40, 100, 40, 4500)
+    assert "1 sa 15 dk kaldı" in friendly_progress(estimated)
 
 
 def test_desktop_theme_preference_round_trip_and_safe_fallback(tmp_path: Path) -> None:
