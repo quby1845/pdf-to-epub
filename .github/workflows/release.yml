@@ -24,7 +24,7 @@ jobs:
           test "v${package_version}" = "${GITHUB_REF_NAME}"
       - run: python -m build
       - run: python -m twine check dist/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: python-distributions
           path: |
@@ -41,7 +41,7 @@ jobs:
           mkdir release-assets
           python scripts/build_windows_bundle.py \
             --output="release-assets/pdf-to-epub-ocr-${GITHUB_REF_NAME}-windows-easy-start.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-easy-start
           path: release-assets/*.zip
