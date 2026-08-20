@@ -210,10 +210,11 @@ def friendly_error(error: Exception) -> str:
         return "MOBI için Calibre bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
     if "PyTorch is not installed" in message:
         return "PyTorch bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
-    if "CUDA is not available" in message:
+    if "CUDA/ROCm is not available" in message or "CUDA is not available" in message:
         return (
-            "NVIDIA CUDA kullanılamıyor. Bu OCR motoru CPU ile çalışmaz. "
-            "NVIDIA sürücüsünü kontrol edip KURULUM.bat dosyasını yeniden çalıştırın."
+            "GPU hızlandırması kullanılamıyor. Bu OCR motoru CPU ile çalışmaz. Desteklenen "
+            "NVIDIA CUDA veya AMD ROCm ekran kartı sürücüsünü kontrol edip KURULUM.bat "
+            "dosyasını yeniden çalıştırın."
         )
     if "Output already exists" in message:
         return "Aynı isimde bir çıktı dosyası zaten var. Farklı bir kayıt yeri seçin."

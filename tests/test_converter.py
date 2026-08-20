@@ -13,6 +13,7 @@ from pdf_to_epub.converter import (
     ConversionOptions,
     ConversionProgress,
     _pandoc_command,
+    accelerator_backend,
     check_runtime,
     convert_pdf,
     create_epub,
@@ -39,6 +40,7 @@ def fake_torch(
     free_gib: float,
     capability: tuple[int, int] = (8, 9),
     architectures: list[str] | None = None,
+    backend: str = "cuda",
 ) -> types.SimpleNamespace:
     fake_cuda = types.SimpleNamespace(
         is_available=lambda: True,
@@ -53,7 +55,10 @@ def fake_torch(
     )
     return types.SimpleNamespace(
         __version__="test",
-        version=types.SimpleNamespace(cuda="test"),
+        version=types.SimpleNamespace(
+            cuda="test" if backend == "cuda" else None,
+            hip="test" if backend == "rocm" else None,
+        ),
         cuda=fake_cuda,
         ones=lambda *_args, **_kwargs: FakeCudaTensor(),
     )
@@ -257,7 +262,7 @@ def test_check_runtime_handles_missing_tools_and_cpu(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr("pdf_to_epub.converter.shutil.which", lambda _name: "pandoc")
     fake_torch = types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda: False))
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
-    with pytest.raises(ConversionError, match="CUDA is not available"):
+    with pytest.raises(ConversionError, match="CUDA/ROCm is not available"):
         check_runtime()
 
 
@@ -319,6 +324,25 @@ def test_check_runtime_requires_sm120_for_blackwell(monkeypatch: pytest.MonkeyPa
     )
     with pytest.raises(ConversionError, match="sm_120"):
         check_runtime()
+
+
+def test_check_runtime_accepts_rocm_and_does_not_apply_blackwell_cuda_rules(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("pdf_to_epub.converter.shutil.which", lambda _name: "pandoc")
+    rocm_torch = fake_torch(
+        total_gib=16,
+        free_gib=14,
+        capability=(12, 0),
+        architectures=["gfx1200"],
+        backend="rocm",
+    )
+    monkeypatch.setitem(sys.modules, "torch", rocm_torch)
+    assert accelerator_backend(rocm_torch) == "rocm"
+    assert check_runtime() is None
+
+    cuda_torch = fake_torch(total_gib=12, free_gib=10)
+    assert accelerator_backend(cuda_torch) == "cuda"
 
 
 def test_conversion_forwards_options_and_cleans_successful_workdir(

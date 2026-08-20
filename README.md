@@ -28,8 +28,8 @@ on your machine; no document text is sent to an external API.
 
 The desktop app keeps the document on your computer and saves the selected output beside the
 PDF by default. Once setup is complete, the app launches without a command prompt and provides
-a normal windowed workflow. A supported conversion currently requires Windows 10/11 and an
-NVIDIA CUDA GPU.
+a normal windowed workflow. NVIDIA CUDA works on Windows 10/11. The AMD ROCm beta path requires
+Windows 11, Python 3.12, and one of AMD's officially listed Radeon GPUs.
 
 ## Why this project
 
@@ -48,17 +48,27 @@ settings. PDF to EPUB OCR provides a reproducible command-line workflow for scan
 
 | Component | Supported / recommended |
 | --- | --- |
-| Operating system | Windows 10/11; Linux is community-supported |
+| Operating system | Windows 10/11 for NVIDIA; Windows 11 for AMD ROCm; Linux is community-supported |
 | Python | 3.11, 3.12, or 3.13 |
-| GPU | NVIDIA CUDA GPU; 8 GB is the practical baseline for the current unquantized model |
+| GPU | Supported NVIDIA CUDA or AMD ROCm GPU; 8 GB is the practical model baseline |
 | Memory | 16 GB RAM recommended |
 | Disk | At least 20 GB free for Python packages and the 6.5 GB OCR model |
 | System tools | Pandoc, Poppler, and Calibre (`ebook-convert`) for MOBI |
 
-Local DeepSeek OCR requires CUDA and does not support CPU conversion. A 6 GB card cannot reliably
-hold the current unquantized model. An 8 GB card can work when other GPU applications are closed;
-more VRAM provides additional headroom. The OCR quality setting changes the page-processing
-resolution and working memory, not the 6.5 GB model download or its base weight footprint.
+Local DeepSeek OCR requires GPU acceleration and does not support CPU conversion. NVIDIA uses
+CUDA; supported AMD cards use ROCm. A 6 GB card cannot reliably hold the current unquantized
+model. An 8 GB card can work when other GPU applications are closed; more VRAM provides
+additional headroom. The OCR quality setting changes page-processing resolution and working
+memory, not the 6.5 GB model download or its base weight footprint.
+
+AMD support is currently beta because the upstream OCR packages still describe their local
+backend as CUDA-only. PyTorch intentionally exposes AMD ROCm devices through the same
+`torch.cuda` API used by those packages, and setup performs a real tensor/kernel probe before
+accepting the installation. The official Windows ROCm 7.2.1 list currently covers RX 9070,
+RX 9070 XT, AI PRO R9700, RX 9060 XT, RX 7900 XTX, PRO W7900 variants, and RX 7700. AMD requires
+Windows 11, Python 3.12, and graphics driver 26.2.2. See AMD's
+[Windows compatibility matrix](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/windows/windows_compatibility.html)
+and [PyTorch installation guide](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/windows/install-pytorch.html).
 
 ## Installation
 
@@ -73,11 +83,15 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\setup.ps1
 ```
 
-The script installs its managed environment at the short, stable
+The script detects NVIDIA or a supported AMD Radeon before creating the environment. It installs
+CUDA PyTorch for NVIDIA, or AMD's official ROCm 7.2.1/PyTorch 2.9.1 wheels for eligible Windows
+11 cards. The managed environment lives at the short, stable
 `%LOCALAPPDATA%\PDF-to-EPUB-OCR\venv` path, avoiding Windows path-length failures even when the
 downloaded ZIP is deeply nested. It repairs partial environments using real imports and a CUDA
 kernel probe, selects CUDA 13 with `sm_120` support for RTX 50 / Blackwell cards, keeps compatible
-RTX 30/40 installs, installs the package, and checks Pandoc, Poppler, and Calibre.
+RTX 30/40 installs, installs the package, and checks Pandoc, Poppler, and Calibre. AMD installs
+are pinned to Python 3.12 and are rejected early when the Radeon model is outside AMD's official
+Windows support matrix.
 
 ### Docker setup (optional CLI workflow)
 
@@ -221,6 +235,8 @@ Run `pdf-to-epub-ocr --help` for the complete interface.
 - Complex tables, formulas, marginalia, and right-to-left text may require manual correction.
 - Exact PDF pagination and visual layout cannot be preserved in a reflowable EPUB.
 - MOBI is a legacy format; EPUB is recommended unless an older device or workflow requires MOBI.
+- AMD Windows support is beta and limited to AMD's published ROCm hardware matrix; the automated
+  suite cannot execute AMD GPU inference on NVIDIA-hosted CI.
 - The automated test suite validates orchestration and text processing without downloading
   models or performing GPU OCR. Maintainers manually validate representative conversion output.
 
@@ -230,6 +246,9 @@ Run `pdf-to-epub-ocr --help` for the complete interface.
 | --- | --- |
 | `PyTorch is not installed` | Install the CUDA build selected for your driver and Python version. |
 | `CUDA is not available` | Check the NVIDIA driver and PyTorch CUDA build. CPU runs are not supported. |
+| `CUDA/ROCm is not available` | Rerun `KURULUM.bat` so the matching NVIDIA or AMD PyTorch build is installed. |
+| Unsupported AMD GPU | Windows AMD beta only accepts models in AMD's ROCm 7.2.1 compatibility matrix. |
+| AMD ROCm setup fails | Confirm Windows 11, Python 3.12, Radeon driver 26.2.2, and a supported GPU. |
 | `[WinError 206]` during setup | Run the current `KURULUM.bat`; it uses a short managed environment and repairs partial installs. |
 | `[WinError 1314]` in the model cache | Upgrade to the current release; it falls back to ordinary copies without admin or Developer Mode. |
 | RTX 50 / `no kernel image` | Rerun `KURULUM.bat` so CUDA 13 PyTorch with `sm_120` kernels is selected. |

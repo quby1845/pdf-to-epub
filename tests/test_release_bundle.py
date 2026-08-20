@@ -54,3 +54,12 @@ def test_windows_setup_installs_calibre_for_mobi_output() -> None:
     setup = Path("setup.ps1").read_text(encoding="ascii")
     assert 'Install-WingetPackage -Id "calibre.calibre"' in setup
     assert "ebook-convert.exe" in setup
+
+
+def test_windows_setup_contains_verified_amd_rocm_path() -> None:
+    setup = Path("setup.ps1").read_text(encoding="ascii")
+    assert "Test-SupportedAmdGpuName" in setup
+    assert "AMD Radeon RX 7900 XTX" in setup
+    assert "rocm-rel-7.2.1" in setup
+    assert "torch-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl" in setup
+    assert 'if ($gpuProfile.Vendor -eq "amd")' in setup

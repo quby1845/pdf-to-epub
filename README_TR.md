@@ -12,13 +12,13 @@ kitabın sayfaları bir metin API'sine gönderilmez.
 
 - Windows 10 veya Windows 11
 - Python 3.11–3.13 (yoksa kolay kurulum yüklemeyi dener)
-- NVIDIA CUDA ekran kartı; mevcut sıkıştırılmamış model için pratik alt sınır 8 GB VRAM
+- Desteklenen NVIDIA CUDA veya AMD ROCm ekran kartı; pratik alt sınır 8 GB VRAM
 - En az 16 GB RAM ve yaklaşık 20 GB boş alan
 - İlk kurulum ve ilk model indirmesi için internet bağlantısı
 
-NVIDIA CUDA ekran kartınız yoksa dönüşüm çalışmaz; kullanılan yerel DeepSeek OCR motoru CPU ile
-dönüşümü desteklememektedir. 6 GB kartlar mevcut sıkıştırılmamış modeli güvenilir biçimde
-çalıştıramaz. 8 GB kartlarda diğer GPU uygulamalarını kapatmak gerekebilir; daha fazla VRAM daha
+Program CPU ile dönüşümü desteklemez. NVIDIA kartlar CUDA, desteklenen AMD kartlar ROCm kullanır.
+6 GB kartlar mevcut sıkıştırılmamış modeli güvenilir biçimde çalıştıramaz. 8 GB kartlarda diğer
+GPU uygulamalarını kapatmak gerekebilir; daha fazla VRAM daha
 rahat çalışır. OCR kalite seçeneği 6,5 GB model indirmesinin ve ana modelin bellekteki boyutunu
 değil, sayfaların işlenme çözünürlüğünü ve ek çalışma belleğini değiştirir.
 
@@ -39,6 +39,15 @@ uzun klasör yoluna değil `%LOCALAPPDATA%\PDF-to-EPUB-OCR\venv` konumuna kurulu
 kalırsa `KURULUM.bat` bozuk ortamı gerçek içe aktarma ve CUDA testiyle algılayıp yeniden oluşturur.
 RTX 50 serisinde `sm_120` destekli CUDA 13 paketi otomatik seçilir; çalışan RTX 30/40 kurulumu
 gereksiz yere değiştirilmez.
+
+AMD desteği şimdilik beta durumundadır. Windows 11, Python 3.12 ve Radeon sürücüsü 26.2.2
+gerektirir. Resmi Windows ROCm 7.2.1 listesinde şu kartlar bulunur: RX 9070, RX 9070 XT,
+AI PRO R9700, RX 9060 XT, RX 7900 XTX, PRO W7900, PRO W7900 Dual Slot ve RX 7700. Kurulum ekran
+kartını otomatik algılar; listede olmayan AMD kartta yanlış paket kurmak yerine anlaşılır hata
+verir. PyTorch AMD'de de `torch.cuda` ad alanını kullandığı için bu isim loglarda görülebilir.
+Kurulum, gerçek GPU tensörü çalıştırmadan tamamlandı sayılmaz. Güncel liste için AMD'nin
+[Windows uyumluluk tablosuna](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/windows/windows_compatibility.html)
+bakabilirsiniz.
 
 ## Docker ile kurulum (isteğe bağlı)
 
@@ -148,6 +157,8 @@ GPU programları, PyTorch ve sürücü sürümü gerçek tüketimi değiştirebi
 | `[WinError 206]` | Son sürümde ortam kısa kullanıcı yoluna kurulur; `KURULUM.bat` dosyasını yeniden çalıştırın |
 | `[WinError 1314]` | Son sürüm model cache'inde symlink yerine normal kopya kullanır; yönetici/Developer Mode gerekmez |
 | RTX 50 / `no kernel image` | `KURULUM.bat` dosyasını yeniden çalıştırın; kurulum CUDA 13 + `sm_120` paketini seçer |
+| Desteklenmeyen AMD ekran kartı | Kartınızı AMD'nin Windows ROCm 7.2.1 uyumluluk listesinde kontrol edin |
+| AMD ROCm kurulumu başarısız | Windows 11, Python 3.12 ve Radeon sürücüsü 26.2.2 kullandığınızı doğrulayın |
 | 6 GB VRAM | Mevcut 6,5 GB ana model sığmaz; Tiny/Small bunu küçültmez |
 | 8 GB ve üzeri bellek hatası | Diğer GPU uygulamalarını kapatın; sayfa yükü için `base` veya `small` deneyin |
 | Pandoc/PyTorch bulunamadı | Kurulumu yeniden çalıştırın ve bilgisayarı yeniden başlatın |

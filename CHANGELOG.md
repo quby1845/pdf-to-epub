@@ -7,6 +7,19 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-08-20
+
+### Added
+
+- Add beta Windows AMD ROCm 7.2.1 support for AMD's official Radeon compatibility list. The easy
+  installer detects NVIDIA versus AMD, requires Windows 11 and Python 3.12 for AMD, installs
+  AMD's official PyTorch 2.9.1 ROCm wheels, and verifies the backend with a real GPU tensor.
+
+### Changed
+
+- Make runtime diagnostics backend-aware so ROCm's intentional `torch.cuda` API compatibility
+  does not trigger NVIDIA Blackwell checks or misleading CUDA-only errors.
+
 ## [0.7.0] - 2026-08-20
 
 ### Added
@@ -183,7 +196,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.4...v0.7.0
 [0.6.4]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.2...v0.6.3

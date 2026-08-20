@@ -26,11 +26,12 @@ body:
   - type: textarea
     attributes:
       label: Environment
-      description: Include OS, Python, GPU, driver/CUDA, Pandoc, and Poppler versions.
+      description: Include OS, Python, GPU, driver, CUDA/ROCm, Pandoc, and Poppler versions.
       placeholder: |
         OS: Windows 11
         Python: 3.12.x
-        GPU: NVIDIA ...
+        GPU: NVIDIA ... or AMD Radeon ...
+        Backend: CUDA ... or ROCm ...
         OCR size / DPI: gundam / 300
     validations:
       required: true

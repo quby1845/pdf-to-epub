@@ -133,7 +133,7 @@ def test_desktop_messages_are_friendly_and_future_safe() -> None:
     assert "modeli" in friendly_progress("Checking and downloading OCR models")
     assert friendly_progress("Future stage") == "Future stage"
     assert "KURULUM.bat" in friendly_error(RuntimeError("Pandoc was not found on PATH"))
-    assert "CUDA" in friendly_error(RuntimeError("CUDA is not available"))
+    assert "AMD ROCm" in friendly_error(RuntimeError("CUDA/ROCm is not available"))
     assert "base" in friendly_error(RuntimeError("CUDA out of memory"))
     assert "6,5 GB" in friendly_error(
         RuntimeError("The current model does not fit reliably in a 6 GB GPU")

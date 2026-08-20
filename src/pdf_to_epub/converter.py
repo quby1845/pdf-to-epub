@@ -100,6 +100,7 @@ class ConversionError(RuntimeError):
 
 
 OutputFormat = Literal["epub", "markdown", "mobi"]
+AcceleratorBackend = Literal["cuda", "rocm"]
 
 
 @dataclass(frozen=True)
@@ -309,6 +310,12 @@ def find_ebook_convert() -> str | None:
     return None
 
 
+def accelerator_backend(torch_module: object) -> AcceleratorBackend:
+    """Identify CUDA or ROCm without assuming the torch.cuda namespace means NVIDIA."""
+    version = getattr(torch_module, "version", None)
+    return "rocm" if getattr(version, "hip", None) else "cuda"
+
+
 def check_runtime(output_format: OutputFormat = "epub") -> str | None:
     """Validate lightweight runtime requirements and return an optional warning."""
     if output_format in {"epub", "mobi"} and shutil.which("pandoc") is None:
@@ -326,36 +333,49 @@ def check_runtime(output_format: OutputFormat = "epub") -> str | None:
 
     if not torch.cuda.is_available():
         raise ConversionError(
-            "CUDA is not available. Local DeepSeek OCR requires a supported NVIDIA GPU "
-            "and a CUDA-enabled PyTorch installation."
+            "CUDA/ROCm is not available. Local DeepSeek OCR requires a supported NVIDIA CUDA "
+            "or AMD ROCm GPU and a matching PyTorch installation."
         )
 
+    backend = accelerator_backend(torch)
     try:
         properties = torch.cuda.get_device_properties(0)
         total_vram = properties.total_memory
-        gpu_name = getattr(properties, "name", "Unknown NVIDIA GPU")
-        capability = tuple(torch.cuda.get_device_capability(0))
+        gpu_name = getattr(properties, "name", "Unknown GPU")
         free_vram, _ = torch.cuda.mem_get_info(0)
+    except (AttributeError, RuntimeError, TypeError):
+        logger.warning("GPU acceleration is available but VRAM properties could not be read.")
+        properties = None
+        total_vram = 0
+        free_vram = 0
+        gpu_name = "Unknown GPU"
+
+    try:
+        capability = tuple(torch.cuda.get_device_capability(0))
+    except (AttributeError, RuntimeError, TypeError):
+        capability = ()
+    try:
         arch_list = list(torch.cuda.get_arch_list())
     except (AttributeError, RuntimeError, TypeError):
-        logger.warning("CUDA is available but detailed GPU properties could not be read.")
-        return None
+        arch_list = []
 
     total_vram_gib = total_vram / (1024**3)
     free_vram_gib = free_vram / (1024**3)
     logger.info(
-        "CUDA runtime: torch=%s cuda=%s gpu=%s capability=%s total_vram=%.1fGiB "
-        "free_vram=%.1fGiB architectures=%s",
+        "GPU runtime: backend=%s torch=%s cuda=%s hip=%s gpu=%s capability=%s "
+        "total_vram=%.1fGiB free_vram=%.1fGiB architectures=%s",
+        backend,
         getattr(torch, "__version__", "unknown"),
         getattr(getattr(torch, "version", None), "cuda", "unknown"),
+        getattr(getattr(torch, "version", None), "hip", "none"),
         gpu_name,
-        ".".join(str(item) for item in capability),
+        ".".join(str(item) for item in capability) or "unknown",
         total_vram_gib,
         free_vram_gib,
         ",".join(arch_list),
     )
 
-    if capability >= (12, 0) and "sm_120" not in arch_list:
+    if backend == "cuda" and capability >= (12, 0) and "sm_120" not in arch_list:
         raise ConversionError(
             "This RTX 50 / Blackwell GPU needs a PyTorch build with sm_120 support. "
             "On Windows, run KURULUM.bat again to install the CUDA 13 build. "
@@ -370,15 +390,17 @@ def check_runtime(output_format: OutputFormat = "epub") -> str | None:
         detail = str(error)
         if "no kernel image" in detail.lower():
             raise ConversionError(
-                "The installed PyTorch build cannot run kernels on this NVIDIA GPU. "
-                "On Windows, run KURULUM.bat again so the compatible CUDA build can be "
-                "installed. Docker and manual installs must select a matching PyTorch build."
+                "The installed PyTorch build cannot run kernels on this GPU. On Windows, run "
+                "KURULUM.bat again so the matching NVIDIA CUDA or AMD ROCm build can be "
+                "installed. Docker and manual installs must select a compatible PyTorch build."
             ) from error
-        raise ConversionError(f"CUDA could not run a startup test: {detail}") from error
+        raise ConversionError(f"GPU acceleration could not run a startup test: {detail}") from error
 
+    if properties is None:
+        return None
     if total_vram_gib < _MINIMUM_TOTAL_VRAM_GIB:
         raise ConversionError(
-            f"The selected NVIDIA GPU ({gpu_name}) has {total_vram_gib:.1f} GB VRAM. "
+            f"The selected GPU ({gpu_name}) has {total_vram_gib:.1f} GB VRAM. "
             "The current unquantized OCR model does not fit reliably in a 6 GB GPU. "
             "Tiny and small reduce per-page work but do not shrink the 6.5 GB model."
         )
@@ -390,7 +412,7 @@ def check_runtime(output_format: OutputFormat = "epub") -> str | None:
         )
     if free_vram_gib < _MINIMUM_FREE_VRAM_GIB:
         return (
-            f"The selected NVIDIA GPU ({gpu_name}) has only {free_vram_gib:.1f} GB of "
+            f"The selected GPU ({gpu_name}) has only {free_vram_gib:.1f} GB of "
             f"{total_vram_gib:.1f} GB VRAM available. Close browsers, games, and other GPU "
             "applications before converting. Tiny or small can reduce per-page memory use."
         )

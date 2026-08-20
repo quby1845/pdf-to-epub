@@ -51,7 +51,10 @@ function Get-PythonCandidateVersion {
 }
 
 function Find-SupportedPython {
-    param([object[]] $Candidates)
+    param(
+        [object[]] $Candidates,
+        [string] $RequiredVersion
+    )
 
     if (-not $PSBoundParameters.ContainsKey("Candidates")) {
         $Candidates = @(
@@ -66,7 +69,8 @@ function Find-SupportedPython {
         if (-not (Get-Command $candidate.Command -ErrorAction SilentlyContinue)) {
             continue
         }
-        if (Get-PythonCandidateVersion -Candidate $candidate) {
+        $version = Get-PythonCandidateVersion -Candidate $candidate
+        if ($version -and (-not $RequiredVersion -or $version -eq $RequiredVersion)) {
             return $candidate
         }
     }
@@ -82,7 +86,8 @@ function Find-SupportedPython {
     foreach ($knownPath in $knownPaths) {
         if (Test-Path $knownPath) {
             $candidate = [pscustomobject]@{ Command = $knownPath; Arguments = @() }
-            if (Get-PythonCandidateVersion -Candidate $candidate) {
+            $version = Get-PythonCandidateVersion -Candidate $candidate
+            if ($version -and (-not $RequiredVersion -or $version -eq $RequiredVersion)) {
                 return $candidate
             }
         }
@@ -172,7 +177,12 @@ function Find-EbookConvert {
 function Get-NvidiaGpuProfile {
     param([string] $NvidiaSmi)
     if (-not $NvidiaSmi) {
-        return [pscustomobject]@{ Name = "Unknown"; ComputeCapability = 0.0; IsBlackwell = $false }
+        return [pscustomobject]@{
+            Vendor = "nvidia"
+            Name = "Unknown"
+            ComputeCapability = 0.0
+            IsBlackwell = $false
+        }
     }
 
     $line = & $NvidiaSmi --query-gpu=name,compute_cap --format=csv,noheader,nounits 2>$null |
@@ -195,10 +205,80 @@ function Get-NvidiaGpuProfile {
     }
     $blackwell = $capability -ge 12.0 -or $name -match "RTX\s*50"
     return [pscustomobject]@{
+        Vendor = "nvidia"
         Name = $name
         ComputeCapability = $capability
         IsBlackwell = $blackwell
     }
+}
+
+function Test-SupportedAmdGpuName {
+    param([Parameter(Mandatory = $true)] [string] $Name)
+    $supportedNames = @(
+        "AMD Radeon RX 9070",
+        "AMD Radeon RX 9070 XT",
+        "AMD Radeon AI PRO R9700",
+        "AMD Radeon RX 9060 XT",
+        "AMD Radeon RX 7900 XTX",
+        "AMD Radeon PRO W7900",
+        "AMD Radeon PRO W7900 Dual Slot",
+        "AMD Radeon RX 7700"
+    )
+    return $supportedNames -contains $Name.Trim()
+}
+
+function Get-SupportedAmdGpuProfile {
+    try {
+        $controllers = Get-CimInstance Win32_VideoController -ErrorAction Stop
+    } catch {
+        return $null
+    }
+    foreach ($controller in $controllers) {
+        $name = ([string]$controller.Name).Trim()
+        if (Test-SupportedAmdGpuName -Name $name) {
+            return [pscustomobject]@{
+                Vendor = "amd"
+                Name = $name
+                ComputeCapability = 0.0
+                IsBlackwell = $false
+            }
+        }
+    }
+    return $null
+}
+
+function Get-AnyAmdGpuName {
+    try {
+        $controllers = Get-CimInstance Win32_VideoController -ErrorAction Stop
+    } catch {
+        return $null
+    }
+    foreach ($controller in $controllers) {
+        $name = ([string]$controller.Name).Trim()
+        if ($name -match "AMD|Radeon") {
+            return $name
+        }
+    }
+    return $null
+}
+
+function Get-GpuProfile {
+    $nvidiaSmi = Find-NvidiaSmi
+    if ($nvidiaSmi) {
+        return Get-NvidiaGpuProfile -NvidiaSmi $nvidiaSmi
+    }
+    $amdProfile = Get-SupportedAmdGpuProfile
+    if ($amdProfile) {
+        if ([Environment]::OSVersion.Version.Build -lt 22000) {
+            throw "AMD ROCm destegi Windows 11 gerektirir."
+        }
+        return $amdProfile
+    }
+    $amdName = Get-AnyAmdGpuName
+    if ($amdName) {
+        throw "AMD ekran karti '$amdName' resmi Windows ROCm 7.2.1 destek listesinde degil."
+    }
+    throw "Desteklenen NVIDIA CUDA veya AMD ROCm ekran karti bulunamadi."
 }
 
 function Get-TorchChannel {
@@ -210,24 +290,29 @@ function Get-TorchChannel {
 }
 
 function Get-TorchProbeCode {
-    return @'
+    param([Parameter(Mandatory = $true)] $GpuProfile)
+    $expectedBackend = if ($GpuProfile.Vendor -eq "amd") { "rocm" } else { "cuda" }
+    return @"
 import sys
 try:
     import torch
     if not torch.cuda.is_available():
-        raise RuntimeError("CUDA is not available")
+        raise RuntimeError("GPU acceleration is not available")
+    backend = "rocm" if getattr(torch.version, "hip", None) else "cuda"
+    if backend != "$expectedBackend":
+        raise RuntimeError(f"Expected $expectedBackend PyTorch but found {backend}")
     capability = tuple(torch.cuda.get_device_capability(0))
     architectures = set(torch.cuda.get_arch_list())
-    if capability >= (12, 0) and "sm_120" not in architectures:
+    if backend == "cuda" and capability >= (12, 0) and "sm_120" not in architectures:
         raise RuntimeError("PyTorch does not contain sm_120 kernels")
     value = torch.ones(1, device="cuda")
     value.add_(1)
     torch.cuda.synchronize()
-    print(f"PyTorch {torch.__version__}; CUDA {torch.version.cuda}; GPU capability {capability[0]}.{capability[1]}")
+    print(f"PyTorch {torch.__version__}; backend {backend}; CUDA {torch.version.cuda}; HIP {getattr(torch.version, 'hip', None)}; GPU capability {capability[0]}.{capability[1]}")
 except Exception as error:
-    print(f"PyTorch/CUDA validation failed: {error}", file=sys.stderr)
+    print(f"PyTorch GPU validation failed: {error}", file=sys.stderr)
     raise
-'@
+"@
 }
 
 function Install-WingetPackage {
@@ -239,6 +324,29 @@ function Install-WingetPackage {
     winget install --exact --id $Id --accept-source-agreements --accept-package-agreements --silent
     if ($LASTEXITCODE -ne 0) {
         throw "$DisplayName kurulamadi (winget cikis kodu: $LASTEXITCODE)."
+    }
+}
+
+function Install-AmdRocmPyTorch {
+    param([Parameter(Mandatory = $true)] [string] $PythonCommand)
+    $base = "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1"
+    $sdkPackages = @(
+        "$base/rocm_sdk_core-7.2.1-py3-none-win_amd64.whl",
+        "$base/rocm_sdk_devel-7.2.1-py3-none-win_amd64.whl",
+        "$base/rocm_sdk_libraries_custom-7.2.1-py3-none-win_amd64.whl",
+        "$base/rocm-7.2.1.tar.gz"
+    )
+    $torchPackages = @(
+        "$base/torch-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
+        "$base/torchvision-0.24.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl"
+    )
+    & $PythonCommand -m pip install --no-cache-dir @sdkPackages
+    if ($LASTEXITCODE -ne 0) {
+        throw "AMD ROCm 7.2.1 bilesenleri kurulamadi."
+    }
+    & $PythonCommand -m pip install --no-cache-dir --force-reinstall @torchPackages
+    if ($LASTEXITCODE -ne 0) {
+        throw "AMD ROCm PyTorch paketleri kurulamadi."
     }
 }
 
@@ -285,6 +393,17 @@ if ($InstallerLogicSelfTest) {
             (Get-TorchChannel $ampere) -ne "cu126") {
             throw "GPU channel selection failed."
         }
+        if (-not (Test-SupportedAmdGpuName -Name "AMD Radeon RX 7900 XTX") -or
+            (Test-SupportedAmdGpuName -Name "AMD Radeon RX 7600")) {
+            throw "AMD ROCm support-list validation failed."
+        }
+        $amdProbe = Get-TorchProbeCode -GpuProfile ([pscustomobject]@{
+            Vendor = "amd"
+            IsBlackwell = $false
+        })
+        if ($amdProbe -notmatch 'Expected rocm PyTorch') {
+            throw "AMD ROCm probe selection failed."
+        }
 
         $testVenv = Join-Path $testRoot "venv"
         New-Item -ItemType Directory -Path $testVenv -Force | Out-Null
@@ -306,15 +425,20 @@ Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  PDF to EPUB OCR - Kolay Kurulum" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
-$python = Find-SupportedPython
+$gpuProfile = Get-GpuProfile
+$requiredPython = if ($gpuProfile.Vendor -eq "amd") { "3.12" } else { $null }
+if ($gpuProfile.Vendor -eq "amd") {
+    Write-Host "AMD ROCm beta: Windows 11, Python 3.12 ve Radeon surucusu 26.2.2 gerekir." -ForegroundColor Yellow
+}
+$python = Find-SupportedPython -RequiredVersion $requiredPython
 if (-not $python) {
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Write-Host "Python 3.11-3.13 bulunamadi ve winget kullanilamiyor." -ForegroundColor Red
+        Write-Host "Uygun Python surumu bulunamadi ve winget kullanilamiyor." -ForegroundColor Red
         Write-Host "Once https://www.python.org/downloads/ adresinden Python 3.12 kurun." -ForegroundColor Yellow
         exit 1
     }
     Install-WingetPackage -Id "Python.Python.3.12" -DisplayName "Python 3.12"
-    $python = Find-SupportedPython
+    $python = Find-SupportedPython -RequiredVersion $requiredPython
 }
 
 if (-not $python) {
@@ -326,11 +450,17 @@ if (-not $python) {
 $installRoot = Get-ManagedInstallRoot
 $venvPath = Join-Path $installRoot "venv"
 $venvPython = Join-Path $venvPath "Scripts\python.exe"
-$torchProbe = Get-TorchProbeCode
+$torchProbe = Get-TorchProbeCode -GpuProfile $gpuProfile
 New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
 
 Write-Host "[1/7] Kisa yoldaki Python ortami kontrol ediliyor..." -ForegroundColor Green
 $venvValid = Test-PythonCommand -Command $venvPython -Code "import sys; assert sys.prefix != sys.base_prefix"
+if ($venvValid -and $requiredPython -and
+    -not (Test-PythonCommand -Command $venvPython -Code "import sys; assert f'{sys.version_info.major}.{sys.version_info.minor}' == '$requiredPython'")) {
+    Write-Host "AMD ROCm icin Python 3.12 ortami yeniden olusturuluyor." -ForegroundColor Yellow
+    Reset-ManagedVenv -InstallRoot $installRoot -VenvPath $venvPath
+    $venvValid = $false
+}
 if ($venvValid -and -not (Test-PythonCommand -Command $venvPython -Code "import torch")) {
     Write-Host "Yarim veya bozuk PyTorch kurulumu bulundu; Python ortami onariliyor." -ForegroundColor Yellow
     Reset-ManagedVenv -InstallRoot $installRoot -VenvPath $venvPath
@@ -354,29 +484,32 @@ Write-Host "[2/7] Kurulum araclari guncelleniyor..." -ForegroundColor Green
 & $venvPython -m pip install --upgrade pip
 if ($LASTEXITCODE -ne 0) { throw "pip guncellenemedi." }
 
-Write-Host "[3/7] NVIDIA ekran karti ve PyTorch uyumu kontrol ediliyor..." -ForegroundColor Green
-$nvidiaSmi = Find-NvidiaSmi
-if (-not $nvidiaSmi) {
-    throw "NVIDIA ekran karti surucusu bulunamadi. Bu surum yalnizca NVIDIA CUDA ile calisir."
-}
-$gpuProfile = Get-NvidiaGpuProfile -NvidiaSmi $nvidiaSmi
-$torchChannel = Get-TorchChannel -GpuProfile $gpuProfile
-Write-Host "Ekran karti: $($gpuProfile.Name); PyTorch kanali: $torchChannel" -ForegroundColor Cyan
+Write-Host "[3/7] Ekran karti ve PyTorch uyumu kontrol ediliyor..." -ForegroundColor Green
+Write-Host "Ekran karti: $($gpuProfile.Name); altyapi: $($gpuProfile.Vendor)" -ForegroundColor Cyan
 
 if (-not (Test-PythonCommand -Command $venvPython -Code $torchProbe)) {
-    Write-Host "Uyumlu NVIDIA CUDA destekli PyTorch kuruluyor..." -ForegroundColor Green
-    & $venvPython -m pip install --upgrade --force-reinstall torch torchvision --index-url "https://download.pytorch.org/whl/$torchChannel"
-    if ($LASTEXITCODE -ne 0 -and -not $gpuProfile.IsBlackwell) {
-        Write-Host "CUDA 12.6 paketi kurulamadi; CUDA 13.0 deneniyor..." -ForegroundColor Yellow
-        $torchChannel = "cu130"
+    if ($gpuProfile.Vendor -eq "amd") {
+        Write-Host "AMD ROCm 7.2.1 ve uyumlu PyTorch kuruluyor..." -ForegroundColor Green
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            Install-WingetPackage -Id "Microsoft.VCRedist.2015+.x64" -DisplayName "Visual C++ Runtime"
+        }
+        Install-AmdRocmPyTorch -PythonCommand $venvPython
+    } else {
+        $torchChannel = Get-TorchChannel -GpuProfile $gpuProfile
+        Write-Host "Uyumlu NVIDIA CUDA destekli PyTorch kuruluyor..." -ForegroundColor Green
         & $venvPython -m pip install --upgrade --force-reinstall torch torchvision --index-url "https://download.pytorch.org/whl/$torchChannel"
-    }
-    if ($LASTEXITCODE -ne 0) {
-        throw "PyTorch kurulamadi. Ag baglantisini ve bos disk alanini kontrol edin."
+        if ($LASTEXITCODE -ne 0 -and -not $gpuProfile.IsBlackwell) {
+            Write-Host "CUDA 12.6 paketi kurulamadi; CUDA 13.0 deneniyor..." -ForegroundColor Yellow
+            $torchChannel = "cu130"
+            & $venvPython -m pip install --upgrade --force-reinstall torch torchvision --index-url "https://download.pytorch.org/whl/$torchChannel"
+        }
+        if ($LASTEXITCODE -ne 0) {
+            throw "PyTorch kurulamadi. Ag baglantisini ve bos disk alanini kontrol edin."
+        }
     }
 }
 
-Write-Host "[4/7] PyTorch gercek CUDA islemiyle dogrulaniyor..." -ForegroundColor Green
+Write-Host "[4/7] PyTorch gercek GPU islemiyle dogrulaniyor..." -ForegroundColor Green
 & $venvPython -c $torchProbe
 if ($LASTEXITCODE -ne 0) {
     throw "PyTorch kurulmus gorunuyor ancak ekran kartinda calismiyor. Kurulum onarilamadi."
@@ -389,7 +522,7 @@ if ($LASTEXITCODE -ne 0) { throw "Proje bagimliliklari kurulamadi." }
 # Dependencies can change PyTorch constraints. Verify import and a real kernel again.
 & $venvPython -c $torchProbe
 if ($LASTEXITCODE -ne 0) {
-    throw "Bagimlilik kurulumundan sonra PyTorch/CUDA dogrulamasi basarisiz oldu."
+    throw "Bagimlilik kurulumundan sonra PyTorch GPU dogrulamasi basarisiz oldu."
 }
 
 Write-Host "[6/7] Pandoc, Poppler ve MOBI bilesenleri kontrol ediliyor..." -ForegroundColor Green
