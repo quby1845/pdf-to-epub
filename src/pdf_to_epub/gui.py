@@ -24,9 +24,11 @@ from pdf_to_epub.converter import (
 )
 from pdf_to_epub.desktop import (
     DEFAULT_MODEL_LABEL,
+    DEFAULT_OUTPUT_FORMAT_LABEL,
     MODEL_LABELS,
+    OUTPUT_FORMAT_LABELS,
     build_conversion_options,
-    default_epub_path,
+    default_output_path,
     friendly_error,
     friendly_progress,
     load_theme_preference,
@@ -150,6 +152,7 @@ class PdfToEpubApp:
         self.author_var = tk.StringVar(value="Bilinmiyor")
         self.language_var = tk.StringVar(value="tr")
         self.model_var = tk.StringVar(value=DEFAULT_MODEL_LABEL)
+        self.output_format_var = tk.StringVar(value=DEFAULT_OUTPUT_FORMAT_LABEL)
         self.model_help_var = tk.StringVar(value=model_description(DEFAULT_MODEL_LABEL))
         self.status_var = tk.StringVar(value="Bir PDF seçerek başlayın.")
         self.selected_file_var = tk.StringVar(value="Henüz PDF seçilmedi")
@@ -550,7 +553,7 @@ class PdfToEpubApp:
             "sliders",
             "2",
             "Kitap bilgilerini kontrol edin",
-            "Bu bilgiler EPUB kapağında ve e-kitaplığınızda görünür.",
+            "Bu bilgiler e-kitap çıktısında ve kitaplığınızda görünür.",
         )
 
         form = tk.Frame(card, background=theme.card)
@@ -594,11 +597,32 @@ class PdfToEpubApp:
             pady=7,
         ).pack(fill="x", pady=(6, 0))
 
+        format_box = tk.Frame(card, background=theme.card)
+        format_box.pack(fill="x", pady=(14, 0))
+        tk.Label(
+            format_box,
+            text="Çıktı biçimi",
+            image=self._icon("book", theme.primary),
+            compound="left",
+            font=("Segoe UI", 9, "bold"),
+            foreground=theme.ink,
+            background=theme.card,
+        ).pack(anchor="w", pady=(0, 5))
+        self.output_format_combo = ttk.Combobox(
+            format_box,
+            textvariable=self.output_format_var,
+            values=list(OUTPUT_FORMAT_LABELS),
+            state="readonly",
+            style="App.TCombobox",
+        )
+        self.output_format_combo.pack(fill="x")
+        self.output_format_combo.bind("<<ComboboxSelected>>", self._format_changed)
+
         output_box = tk.Frame(card, background=theme.card)
         output_box.pack(fill="x", pady=(14, 0))
         tk.Label(
             output_box,
-            text="EPUB'ın kaydedileceği yer",
+            text="Çıktı dosyasının kaydedileceği yer",
             image=self._icon("save", theme.primary),
             compound="left",
             font=("Segoe UI", 9, "bold"),
@@ -676,7 +700,7 @@ class PdfToEpubApp:
 
         self.convert_button = self._button(
             action_bar,
-            "EPUB'a dönüştür",
+            "Dönüştür",
             self._start_conversion,
             primary=True,
             padx=24,
@@ -699,7 +723,7 @@ class PdfToEpubApp:
             (
                 ("sparkles", "Model hazırlanıyor"),
                 ("scan", "Sayfalar okunuyor"),
-                ("book", "EPUB oluşturuluyor"),
+                ("book", "Çıktı hazırlanıyor"),
             )
         ):
             stage_row.columnconfigure(index, weight=1)
@@ -745,7 +769,7 @@ class PdfToEpubApp:
         self.result_actions.pack(side="right")
         self.open_button = self._button(
             self.result_actions,
-            "EPUB'ı aç",
+            "Çıktıyı aç",
             self._open_output,
             compact=True,
             icon="external",
@@ -808,25 +832,62 @@ class PdfToEpubApp:
         self.selected_file_var.set(pdf_path.name)
         self.selected_file_detail_var.set(f"PDF • {size_mb:.1f} MB • {pdf_path.parent}")
         self.title_var.set(pdf_path.stem)
-        self.output_var.set(str(default_epub_path(pdf_path, pdf_path.stem, self.author_var.get())))
+        self.output_var.set(
+            str(
+                default_output_path(
+                    pdf_path,
+                    pdf_path.stem,
+                    self.author_var.get(),
+                    self.output_format_var.get(),
+                )
+            )
+        )
         self._set_status("PDF hazır. Kitap bilgilerini kontrol edip dönüştürmeyi başlatın.")
 
     def _choose_output(self) -> None:
+        output_format = OUTPUT_FORMAT_LABELS[self.output_format_var.get()]
+        extension = ".md" if output_format == "markdown" else f".{output_format}"
+        descriptions = {
+            "epub": "EPUB dosyaları",
+            "markdown": "Markdown dosyaları",
+            "mobi": "MOBI dosyaları",
+        }
         initial = (
-            Path(self.output_var.get()) if self.output_var.get() else Path.home() / "kitap.epub"
+            Path(self.output_var.get())
+            if self.output_var.get()
+            else Path.home() / f"kitap{extension}"
         )
         selected = filedialog.asksaveasfilename(
-            title="EPUB dosyasını kaydet",
-            defaultextension=".epub",
-            filetypes=[("EPUB dosyaları", "*.epub")],
+            title="Çıktı dosyasını kaydet",
+            defaultextension=extension,
+            filetypes=[(descriptions[output_format], f"*{extension}")],
             initialdir=initial.parent,
-            initialfile=initial.name,
+            initialfile=initial.with_suffix(extension).name,
         )
         if selected:
             self.output_var.set(selected)
 
     def _model_changed(self, _event: object | None = None) -> None:
         self.model_help_var.set(model_description(self.model_var.get()))
+
+    def _format_changed(self, _event: object | None = None) -> None:
+        output_format = OUTPUT_FORMAT_LABELS[self.output_format_var.get()]
+        extension = ".md" if output_format == "markdown" else f".{output_format}"
+        current = self.output_var.get().strip()
+        if current:
+            self.output_var.set(str(Path(current).with_suffix(extension)))
+        elif self.pdf_var.get().strip():
+            pdf_path = Path(self.pdf_var.get())
+            self.output_var.set(
+                str(
+                    default_output_path(
+                        pdf_path,
+                        self.title_var.get(),
+                        self.author_var.get(),
+                        self.output_format_var.get(),
+                    )
+                )
+            )
 
     def _start_conversion(self) -> None:
         try:
@@ -838,15 +899,16 @@ class PdfToEpubApp:
                 language=self.language_var.get(),
                 model_label=self.model_var.get(),
                 overwrite=False,
+                output_format_label=self.output_format_var.get(),
             )
         except ValueError as error:
             messagebox.showerror("Eksik bilgi", str(error))
             return
 
-        if options.epub_path.exists():
+        if options.output_path.exists():
             overwrite = messagebox.askyesno(
                 "Dosya zaten var",
-                "Aynı isimde bir EPUB var. Üzerine yazılsın mı?",
+                "Aynı isimde bir çıktı dosyası var. Üzerine yazılsın mı?",
             )
             if not overwrite:
                 return
@@ -865,7 +927,7 @@ class PdfToEpubApp:
 
     def _convert(self, options: ConversionOptions) -> None:
         try:
-            warning = check_runtime()
+            warning = check_runtime(options.output_format)
             if warning:
                 self.events.put(("warning", friendly_error(RuntimeError(warning))))
             result = convert_pdf(
@@ -910,11 +972,12 @@ class PdfToEpubApp:
         self.progress.configure(mode="determinate", maximum=100, value=100)
         self.converting = False
         self.theme_button.configure(state="normal", cursor="hand2")
-        self.convert_button.configure(state="normal", text="EPUB'a dönüştür", cursor="hand2")
-        self.last_output = Path(result.epub_path)
+        self.convert_button.configure(state="normal", text="Dönüştür", cursor="hand2")
+        self.last_output = Path(result.output_path)
         self._set_stage(3)
         self._set_status(
-            f"Hazır! EPUB {result.elapsed_seconds / 60:.1f} dakikada oluşturuldu.",
+            f"Hazır! {result.output_format.upper()} "
+            f"{result.elapsed_seconds / 60:.1f} dakikada oluşturuldu.",
             kind="success",
         )
         self.open_button.pack(side="left", padx=(0, 7))

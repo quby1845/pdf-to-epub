@@ -48,3 +48,9 @@ def test_windows_bundle_contains_cmd_compatible_launchers(tmp_path: Path) -> Non
 )
 def test_repository_windows_launchers_are_ascii(filename: str) -> None:
     Path(filename).read_bytes().decode("ascii")
+
+
+def test_windows_setup_installs_calibre_for_mobi_output() -> None:
+    setup = Path("setup.ps1").read_text(encoding="ascii")
+    assert 'Install-WingetPackage -Id "calibre.calibre"' in setup
+    assert "ebook-convert.exe" in setup

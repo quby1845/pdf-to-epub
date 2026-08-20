@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from collections.abc import Callable
@@ -20,6 +22,7 @@ logger = logging.getLogger(__name__)
 _MINIMUM_TOTAL_VRAM_GIB = 7.0
 _MINIMUM_START_VRAM_GIB = 5.5
 _MINIMUM_FREE_VRAM_GIB = 6.5
+_OUTPUT_EXTENSIONS = {"epub": ".epub", "markdown": ".md", "mobi": ".mobi"}
 
 _LETTER = r"[^\W\d_]"
 _VISIBLE_HYPHENS = r"\-\u2010\u2011"
@@ -96,6 +99,9 @@ class ConversionError(RuntimeError):
     """Raised when input validation or an external conversion step fails."""
 
 
+OutputFormat = Literal["epub", "markdown", "mobi"]
+
+
 @dataclass(frozen=True)
 class BookMetadata:
     title: str
@@ -117,6 +123,15 @@ class ConversionOptions:
     keep_intermediates: bool = False
     overwrite: bool = False
 
+    @property
+    def output_path(self) -> Path:
+        """Return the selected output path while preserving the historical field name."""
+        return self.epub_path
+
+    @property
+    def output_format(self) -> OutputFormat:
+        return output_format_from_path(self.epub_path)
+
 
 @dataclass(frozen=True)
 class ConversionResult:
@@ -125,6 +140,15 @@ class ConversionResult:
     elapsed_seconds: float
     hyphenation_fixes: int
     intermediates_kept: bool
+
+    @property
+    def output_path(self) -> Path:
+        """Return the generated file while preserving the historical field name."""
+        return self.epub_path
+
+    @property
+    def output_format(self) -> OutputFormat:
+        return output_format_from_path(self.epub_path)
 
 
 ProgressStage = Literal["models", "ocr", "cleanup", "epub"]
@@ -164,12 +188,24 @@ def sanitize_filename(value: str, fallback: str = "book") -> str:
     return cleaned.strip().rstrip(".") or fallback
 
 
-def suggested_output_name(metadata: BookMetadata) -> str:
+def output_format_from_path(path: Path) -> OutputFormat:
+    """Infer a supported output format from a destination suffix."""
+    suffix = path.suffix.casefold()
+    for output_format, extension in _OUTPUT_EXTENSIONS.items():
+        if suffix == extension:
+            return output_format  # type: ignore[return-value]
+    raise ConversionError(
+        f"Output must use one of these extensions: {', '.join(_OUTPUT_EXTENSIONS.values())}."
+    )
+
+
+def suggested_output_name(metadata: BookMetadata, output_format: OutputFormat = "epub") -> str:
     title = sanitize_filename(metadata.title)
+    extension = _OUTPUT_EXTENSIONS[output_format]
     if metadata.author and metadata.author != "Unknown":
         author = sanitize_filename(metadata.author, fallback="Unknown")
-        return f"{title} - {author}.epub"
-    return f"{title}.epub"
+        return f"{title} - {author}{extension}"
+    return f"{title}{extension}"
 
 
 def _looks_like_turkish_suffix(fragment: str) -> bool:
@@ -239,20 +275,48 @@ def validate_options(options: ConversionOptions) -> None:
         raise ConversionError(f"PDF was not found: {options.pdf_path}")
     if options.pdf_path.suffix.lower() != ".pdf":
         raise ConversionError(f"Input must be a PDF file: {options.pdf_path}")
-    if options.epub_path.exists() and not options.overwrite:
+    output_format = output_format_from_path(options.output_path)
+    if options.output_path.exists() and not options.overwrite:
         raise ConversionError(
-            f"Output already exists: {options.epub_path}. Use --overwrite to replace it."
+            f"Output already exists: {options.output_path}. Use --overwrite to replace it."
         )
+    if output_format == "markdown":
+        assets_output = markdown_assets_output_path(options.output_path)
+        if assets_output.exists() and not options.overwrite:
+            raise ConversionError(
+                f"Markdown assets already exist: {assets_output}. Use --overwrite to replace them."
+            )
     if options.css_path is not None and not options.css_path.is_file():
         raise ConversionError(f"Stylesheet was not found: {options.css_path}")
     if not 72 <= options.dpi <= 600:
         raise ConversionError("DPI must be between 72 and 600.")
 
 
-def check_runtime() -> str | None:
+def find_ebook_convert() -> str | None:
+    """Locate Calibre's MOBI converter on PATH or in standard Windows locations."""
+    command = shutil.which("ebook-convert")
+    if command:
+        return command
+    if sys.platform != "win32":
+        return None
+    for variable in ("ProgramFiles", "ProgramFiles(x86)"):
+        root = os.environ.get(variable)
+        if not root:
+            continue
+        candidate = Path(root) / "Calibre2" / "ebook-convert.exe"
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def check_runtime(output_format: OutputFormat = "epub") -> str | None:
     """Validate lightweight runtime requirements and return an optional warning."""
-    if shutil.which("pandoc") is None:
+    if output_format in {"epub", "mobi"} and shutil.which("pandoc") is None:
         raise ConversionError("Pandoc was not found on PATH. Install Pandoc before converting.")
+    if output_format == "mobi" and find_ebook_convert() is None:
+        raise ConversionError(
+            "Calibre ebook-convert was not found. Run KURULUM.bat again to enable MOBI output."
+        )
     try:
         import torch
     except ImportError as error:
@@ -391,14 +455,69 @@ def create_epub(
         raise ConversionError("Pandoc reported success but did not create an EPUB file.")
 
 
+def markdown_assets_output_path(markdown_output: Path) -> Path:
+    """Return the sibling directory used for images referenced by exported Markdown."""
+    return markdown_output.with_name(f"{markdown_output.stem}_assets")
+
+
+def export_markdown(
+    markdown_path: Path,
+    assets_path: Path,
+    output_path: Path,
+    *,
+    overwrite: bool,
+) -> None:
+    """Publish cleaned Markdown and its OCR image assets to the selected destination."""
+    content = markdown_path.read_text(encoding="utf-8")
+    if assets_path.is_dir():
+        output_assets = markdown_assets_output_path(output_path)
+        if output_assets.exists():
+            if not overwrite:
+                raise ConversionError(f"Markdown assets already exist: {output_assets}")
+            shutil.rmtree(output_assets)
+        shutil.copytree(assets_path, output_assets)
+        content = content.replace("assets/", f"{output_assets.name}/")
+    output_path.write_text(content, encoding="utf-8")
+
+
+def create_mobi(
+    markdown_path: Path,
+    mobi_path: Path,
+    metadata: BookMetadata,
+    css_path: Path | None,
+) -> None:
+    """Build an EPUB with Pandoc and convert it to legacy MOBI with Calibre."""
+    ebook_convert = find_ebook_convert()
+    if ebook_convert is None:
+        raise ConversionError(
+            "Calibre ebook-convert was not found. Run KURULUM.bat again to enable MOBI output."
+        )
+    intermediate_epub = markdown_path.with_name("mobi-source.epub")
+    create_epub(markdown_path, intermediate_epub, metadata, css_path)
+    try:
+        result = subprocess.run(
+            [ebook_convert, str(intermediate_epub), str(mobi_path)],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except OSError as error:
+        raise ConversionError(f"Calibre ebook-convert could not be started: {error}") from error
+    if result.returncode != 0:
+        detail = result.stderr.strip() or result.stdout.strip() or "unknown Calibre error"
+        raise ConversionError(f"Calibre MOBI conversion failed: {detail}")
+    if not mobi_path.is_file():
+        raise ConversionError("Calibre reported success but did not create a MOBI file.")
+
+
 def convert_pdf(
     options: ConversionOptions,
     progress: Callable[[ConversionProgress], None] | None = None,
 ) -> ConversionResult:
-    """Run pdf-craft OCR, repair Markdown, and package the result as EPUB."""
+    """Run pdf-craft OCR, repair Markdown, and publish the selected e-book format."""
     validate_options(options)
     report = progress or (lambda _progress: None)
-    options.epub_path.parent.mkdir(parents=True, exist_ok=True)
+    options.output_path.parent.mkdir(parents=True, exist_ok=True)
     options.models_dir.mkdir(parents=True, exist_ok=True)
     if options.work_parent is not None:
         options.work_parent.mkdir(parents=True, exist_ok=True)
@@ -419,7 +538,7 @@ def convert_pdf(
             "Conversion started: pdf=%s output=%s ocr_size=%s dpi=%s models=%s "
             "windows_copy_cache=%s",
             options.pdf_path,
-            options.epub_path,
+            options.output_path,
             options.ocr_size,
             options.dpi,
             options.models_dir,
@@ -473,10 +592,22 @@ def convert_pdf(
 
         report(ConversionProgress("Repairing line-end hyphenation", "cleanup"))
         fixes = fix_hyphenation_file(markdown_path, language=options.metadata.language)
-        report(ConversionProgress("Building EPUB with Pandoc", "epub"))
-        create_epub(markdown_path, options.epub_path, options.metadata, options.css_path)
+        if options.output_format == "markdown":
+            report(ConversionProgress("Writing Markdown output", "epub"))
+            export_markdown(
+                markdown_path,
+                assets_path,
+                options.output_path,
+                overwrite=options.overwrite,
+            )
+        elif options.output_format == "mobi":
+            report(ConversionProgress("Building MOBI with Calibre", "epub"))
+            create_mobi(markdown_path, options.output_path, options.metadata, options.css_path)
+        else:
+            report(ConversionProgress("Building EPUB with Pandoc", "epub"))
+            create_epub(markdown_path, options.output_path, options.metadata, options.css_path)
         return ConversionResult(
-            epub_path=options.epub_path,
+            epub_path=options.output_path,
             work_dir=work_dir,
             elapsed_seconds=time.monotonic() - start,
             hyphenation_fixes=fixes,

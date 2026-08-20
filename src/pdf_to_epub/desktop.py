@@ -13,9 +13,11 @@ from platformdirs import user_cache_path, user_config_path
 
 from pdf_to_epub.converter import (
     BookMetadata,
+    ConversionError,
     ConversionOptions,
     ConversionProgress,
     bundled_css_path,
+    output_format_from_path,
     suggested_output_name,
 )
 
@@ -27,6 +29,12 @@ MODEL_LABELS = {
     "Gundam — kırpma / tahmini ≈10 GB+ VRAM": "gundam",
 }
 DEFAULT_MODEL_LABEL = "Large — 1280 px / tahmini ≈8 GB+ VRAM"
+OUTPUT_FORMAT_LABELS = {
+    "EPUB — modern e-kitap (önerilen)": "epub",
+    "Markdown — düzenlenebilir metin (.md)": "markdown",
+    "MOBI — eski Kindle cihazları (.mobi)": "mobi",
+}
+DEFAULT_OUTPUT_FORMAT_LABEL = "EPUB — modern e-kitap (önerilen)"
 ThemeName = Literal["light", "dark"]
 
 _MODEL_DESCRIPTIONS = {
@@ -44,6 +52,8 @@ _PROGRESS_TRANSLATIONS = {
     "Converting PDF to Markdown with OCR": "Sayfalar OCR ile okunuyor",
     "Repairing line-end hyphenation": "Satır sonu kelimeleri düzeltiliyor",
     "Building EPUB with Pandoc": "EPUB dosyası hazırlanıyor",
+    "Writing Markdown output": "Markdown dosyası ve görseller hazırlanıyor",
+    "Building MOBI with Calibre": "MOBI dosyası Calibre ile hazırlanıyor",
 }
 
 
@@ -72,13 +82,27 @@ def save_theme_preference(theme: ThemeName, settings_path: Path | None = None) -
         pass
 
 
-def default_epub_path(pdf_path: Path, title: str, author: str) -> Path:
+def default_output_path(
+    pdf_path: Path,
+    title: str,
+    author: str,
+    output_format_label: str = DEFAULT_OUTPUT_FORMAT_LABEL,
+) -> Path:
     """Return a friendly output path next to the selected PDF."""
+    if output_format_label not in OUTPUT_FORMAT_LABELS:
+        raise ValueError("Geçerli bir çıktı biçimi seçin.")
     clean_author = author.strip()
     if clean_author in {"", "Bilinmiyor", "Unknown"}:
         clean_author = "Unknown"
     metadata = BookMetadata(title.strip() or pdf_path.stem, clean_author)
-    return pdf_path.with_name(suggested_output_name(metadata))
+    return pdf_path.with_name(
+        suggested_output_name(metadata, OUTPUT_FORMAT_LABELS[output_format_label])
+    )
+
+
+def default_epub_path(pdf_path: Path, title: str, author: str) -> Path:
+    """Backward-compatible alias for the original EPUB-only desktop helper."""
+    return default_output_path(pdf_path, title, author)
 
 
 def build_conversion_options(
@@ -90,14 +114,21 @@ def build_conversion_options(
     language: str,
     model_label: str,
     overwrite: bool,
+    output_format_label: str = DEFAULT_OUTPUT_FORMAT_LABEL,
 ) -> ConversionOptions:
     """Validate desktop form values and convert them to pipeline options."""
     if pdf_path == Path(".") or not pdf_path.is_file():
         raise ValueError("Lütfen bir PDF dosyası seçin.")
     if epub_path == Path("."):
-        raise ValueError("Lütfen EPUB dosyasının kaydedileceği yeri seçin.")
-    if epub_path.suffix.lower() != ".epub":
-        raise ValueError("Çıktı dosyasının uzantısı .epub olmalıdır.")
+        raise ValueError("Lütfen çıktı dosyasının kaydedileceği yeri seçin.")
+    if output_format_label not in OUTPUT_FORMAT_LABELS:
+        raise ValueError("Geçerli bir çıktı biçimi seçin.")
+    try:
+        selected_format = output_format_from_path(epub_path)
+    except ConversionError as error:
+        raise ValueError("Çıktı uzantısı .epub, .md veya .mobi olmalıdır.") from error
+    if selected_format != OUTPUT_FORMAT_LABELS[output_format_label]:
+        raise ValueError("Seçilen çıktı biçimi ile dosya uzantısı eşleşmiyor.")
     if model_label not in MODEL_LABELS:
         raise ValueError("Geçerli bir OCR modeli seçin.")
 
@@ -156,6 +187,8 @@ def progress_stage(progress: ConversionProgress | str) -> int:
         "Converting PDF to Markdown with OCR": 1,
         "Repairing line-end hyphenation": 2,
         "Building EPUB with Pandoc": 2,
+        "Writing Markdown output": 2,
+        "Building MOBI with Calibre": 2,
     }
     return stages.get(message, 0)
 
@@ -173,6 +206,8 @@ def friendly_error(error: Exception) -> str:
     message = str(error)
     if "Pandoc was not found" in message:
         return "Pandoc bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
+    if "Calibre ebook-convert was not found" in message:
+        return "MOBI için Calibre bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
     if "PyTorch is not installed" in message:
         return "PyTorch bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
     if "CUDA is not available" in message:
@@ -181,7 +216,7 @@ def friendly_error(error: Exception) -> str:
             "NVIDIA sürücüsünü kontrol edip KURULUM.bat dosyasını yeniden çalıştırın."
         )
     if "Output already exists" in message:
-        return "Aynı isimde bir EPUB zaten var. Farklı bir kayıt yeri seçin."
+        return "Aynı isimde bir çıktı dosyası zaten var. Farklı bir kayıt yeri seçin."
     if "CUDA out of memory" in message or "out of memory" in message.lower():
         return (
             "Ekran kartı belleği yetmedi. Diğer GPU uygulamalarını kapatın. 'base' veya "

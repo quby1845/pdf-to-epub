@@ -25,6 +25,7 @@ RUN apt-get update \
     && apt-get install --yes --no-install-recommends \
         libgl1 \
         libglib2.0-0 \
+        calibre \
         pandoc \
         poppler-utils \
         python3 \

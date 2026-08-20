@@ -1,8 +1,8 @@
 # PDF to EPUB OCR — Türkçe kolay kullanım
 
-Taranmış PDF kitapları, yazı boyutu değiştirilebilen ve e-kitap okuyucularda rahat kullanılan
-EPUB dosyalarına dönüştürür. OCR işlemi kendi bilgisayarınızda yapılır; kitabın sayfaları bir
-metin API'sine gönderilmez.
+Taranmış PDF kitapları; yazı boyutu değiştirilebilen EPUB, düzenlenebilir Markdown veya eski
+Kindle cihazları için MOBI dosyalarına dönüştürür. OCR işlemi kendi bilgisayarınızda yapılır;
+kitabın sayfaları bir metin API'sine gönderilmez.
 
 > [!IMPORTANT]
 > Program şu anda alfa sürümündedir. Oluşan EPUB'ı mutlaka kontrol edin ve kaynak PDF'yi
@@ -32,7 +32,8 @@ değil, sayfaların işlenme çözünürlüğünü ve ek çalışma belleğini d
 
 Windows koruma uyarısı gösterirse yalnızca bu GitHub deposundan indirdiğinizi doğruladıktan sonra
 **Daha fazla bilgi → Yine de çalıştır** yolunu kullanın. Kurulum; Python, CUDA destekli PyTorch,
-Pandoc, Poppler ve programın bağımlılıklarını hazırlar. İnternet hızına göre 10–30 dakika
+Pandoc, Poppler, MOBI için Calibre ve programın bağımlılıklarını hazırlar. İnternet hızına göre
+10–30 dakika
 sürebilir; masaüstüne ve Başlat menüsüne **PDF to EPUB OCR** kısayolu ekler. Python ortamı ZIP'in
 uzun klasör yoluna değil `%LOCALAPPDATA%\PDF-to-EPUB-OCR\venv` konumuna kurulur. Kurulum yarıda
 kalırsa `KURULUM.bat` bozuk ortamı gerçek içe aktarma ve CUDA testiyle algılayıp yeniden oluşturur.
@@ -41,7 +42,8 @@ gereksiz yere değiştirilmez.
 
 ## Docker ile kurulum (isteğe bağlı)
 
-Docker; Python, CUDA kütüphaneleri, Pandoc, Poppler ve programı tek bir yalıtılmış ortamda kurar.
+Docker; Python, CUDA kütüphaneleri, Pandoc, Poppler, Calibre ve programı tek bir yalıtılmış
+ortamda kurar.
 Bu yöntem masaüstü arayüzünü değil, komut satırı sürümünü çalıştırır. Normal Windows kullanıcısı
 için yukarıdaki `KURULUM.bat` yöntemi daha kolaydır.
 
@@ -91,14 +93,20 @@ docker compose run --rm --entrypoint python converter `
 `docker compose down` model önbelleğini silmez. İndirilen modelleri de özellikle kaldırmak
 isterseniz `docker compose down --volumes` kullanın.
 
-## EPUB oluşturma
+## EPUB, Markdown veya MOBI oluşturma
 
 1. Masaüstündeki veya Başlat menüsündeki **PDF to EPUB OCR** kısayolunu açın. Kurulumdan sonra
    komut penceresi görünmez; program normal bir Windows uygulaması olarak açılır.
 2. **PDF seç** düğmesiyle kitabınızı seçin.
 3. Kitap adı, yazar ve dili kontrol edin.
-4. OCR modeli olarak önce **large — dengeli** seçeneğini deneyin.
-5. **EPUB'a Dönüştür** düğmesine basın.
+4. **Çıktı biçimi** alanından EPUB, Markdown veya MOBI seçin.
+5. OCR modeli olarak önce **large — dengeli** seçeneğini deneyin.
+6. **Dönüştür** düğmesine basın.
+
+EPUB çoğu telefon, tablet ve güncel e-kitap okuyucu için önerilen biçimdir. Markdown seçildiğinde
+düzenlenebilir `.md` dosyası ile görseller için aynı klasörde `<kitap_adı>_assets` klasörü
+oluşturulur. MOBI, eski Kindle cihazları veya eski iş akışları içindir ve Calibre bileşenini
+kullanır.
 
 Sağ üstteki **Koyu tema** düğmesiyle görünümü değiştirebilirsiniz. Seçiminiz hatırlanır ve program
 bir sonraki açılışta aynı temayı kullanır. Dönüşüm sürerken yanlışlıkla arayüzü yenilememek için
@@ -109,7 +117,7 @@ dosya adı, boyutu ve bulunduğu klasör tek bakışta gösterilir. Bu simgeler 
 arayüz açılırken internetten hiçbir görsel indirilmez.
 
 İlk dönüşümde OCR modeli indirileceği için ilerleme bir süre aynı yerde görünebilir. Program
-bittiğinde EPUB varsayılan olarak PDF'nin bulunduğu klasöre kaydedilir. Sayfa okuma başlayınca
+bittiğinde seçilen çıktı varsayılan olarak PDF'nin bulunduğu klasöre kaydedilir. Sayfa okuma başlayınca
 program toplam sayfa sayısını, o anda okunan sayfayı ve tamamlanma yüzdesini canlı gösterir.
 İlk sayfada PDF hazırlama, modelin GPU'ya yüklenmesi ve OCR aşamaları ayrı mesajlarla belirtilir.
 Bir hata olursa pencere ayrıntılı tanı günlüğünün konumunu da gösterir.
@@ -143,8 +151,9 @@ GPU programları, PyTorch ve sürücü sürümü gerçek tüketimi değiştirebi
 | 6 GB VRAM | Mevcut 6,5 GB ana model sığmaz; Tiny/Small bunu küçültmez |
 | 8 GB ve üzeri bellek hatası | Diğer GPU uygulamalarını kapatın; sayfa yükü için `base` veya `small` deneyin |
 | Pandoc/PyTorch bulunamadı | Kurulumu yeniden çalıştırın ve bilgisayarı yeniden başlatın |
+| MOBI için Calibre bulunamadı | `KURULUM.bat` dosyasını yeniden çalıştırın |
 | `Failed to extract page 1 layout at stage 1` | Son sürümü kurun; gösterilen ayrıntılı CUDA hatasıyla birlikte ekran kartı modeli ve VRAM miktarını bildirin |
-| EPUB zaten var | Farklı kayıt adı seçin veya üzerine yazmayı onaylayın |
+| Çıktı zaten var | Farklı kayıt adı seçin veya üzerine yazmayı onaylayın |
 | OCR hataları var | Daha temiz tarama veya daha güçlü model deneyin |
 
 Devam eden bir sorun için [hata bildirimi açabilirsiniz](https://github.com/quby1845/pdf-to-epub/issues/new/choose).

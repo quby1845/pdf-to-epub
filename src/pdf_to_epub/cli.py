@@ -15,9 +15,11 @@ from pdf_to_epub.converter import (
     ConversionError,
     ConversionOptions,
     ConversionProgress,
+    OutputFormat,
     bundled_css_path,
     check_runtime,
     convert_pdf,
+    output_format_from_path,
     suggested_output_name,
 )
 from pdf_to_epub.diagnostics import configure_logging
@@ -28,10 +30,16 @@ logger = logging.getLogger(__name__)
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="pdf-to-epub-ocr",
-        description="Convert scanned PDF books into reflowable EPUB files with local OCR.",
+        description="Convert scanned PDF books into EPUB, Markdown, or MOBI with local OCR.",
     )
     parser.add_argument("pdf", nargs="?", type=Path, help="PDF file to convert")
-    parser.add_argument("-o", "--output", type=Path, help="EPUB output path")
+    parser.add_argument("-o", "--output", type=Path, help="output path (.epub, .md, or .mobi)")
+    parser.add_argument(
+        "--format",
+        dest="output_format",
+        choices=("epub", "markdown", "mobi"),
+        help="output format; inferred from --output when omitted",
+    )
     parser.add_argument("--title", help="book title (defaults to the PDF filename)")
     parser.add_argument("--author", default="Unknown", help="author name (default: Unknown)")
     parser.add_argument("--publisher", default="", help="publisher metadata")
@@ -58,7 +66,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="keep generated Markdown, assets, and analysis files",
     )
-    parser.add_argument("--overwrite", action="store_true", help="replace an existing EPUB")
+    parser.add_argument("--overwrite", action="store_true", help="replace existing output")
     parser.add_argument("-y", "--yes", action="store_true", help="skip interactive confirmation")
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     return parser
@@ -102,6 +110,29 @@ def _progress(progress: ConversionProgress) -> None:
         print(f"[+] {progress.message}...")
 
 
+def _output_selection(
+    output: Path | None,
+    requested_format: OutputFormat | None,
+    metadata: BookMetadata,
+) -> tuple[Path, OutputFormat]:
+    """Resolve a friendly destination and reject contradictory format choices."""
+    if output is None:
+        output_format: OutputFormat = requested_format or "epub"
+        return Path.cwd() / "output" / suggested_output_name(metadata, output_format), output_format
+
+    if output.suffix:
+        inferred_format = output_format_from_path(output)
+        if requested_format is not None and requested_format != inferred_format:
+            raise ConversionError(
+                f"--format {requested_format} does not match the output extension {output.suffix}."
+            )
+        return output, inferred_format
+
+    output_format = requested_format or "epub"
+    extension = ".md" if output_format == "markdown" else f".{output_format}"
+    return output.with_suffix(extension), output_format
+
+
 def main(argv: list[str] | None = None) -> int:
     log_path = configure_logging()
     logger.info("CLI application starting.")
@@ -121,11 +152,12 @@ def main(argv: list[str] | None = None) -> int:
                 language=args.lang,
             )
         )
-        output_path = (
-            args.output.resolve()
-            if args.output
-            else (Path.cwd() / "output" / suggested_output_name(metadata)).resolve()
+        output_path, output_format = _output_selection(
+            args.output,
+            args.output_format,
+            metadata,
         )
+        output_path = output_path.resolve()
         css_path = None if args.no_css else (args.css.resolve() if args.css else bundled_css_path())
 
         print(f"Input : {pdf_path}")
@@ -134,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
         if interactive and not args.yes:
             input("Press Enter to start (Ctrl+C to cancel)...")
 
-        warning = check_runtime()
+        warning = check_runtime(output_format)
         if warning:
             print(f"[WARNING] {warning}", file=sys.stderr)
 
@@ -162,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
         print("\nCancelled.", file=sys.stderr)
         return 130
 
-    print(f"[OK] EPUB created: {result.epub_path}")
+    print(f"[OK] {result.output_format.upper()} created: {result.output_path}")
     print(f"[OK] Hyphenation corrections: {result.hyphenation_fixes}")
     print(f"[OK] Elapsed time: {result.elapsed_seconds:.1f} seconds")
     if result.intermediates_kept:

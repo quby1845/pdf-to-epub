@@ -16,8 +16,12 @@ from pdf_to_epub.converter import (
     check_runtime,
     convert_pdf,
     create_epub,
+    create_mobi,
+    export_markdown,
     fix_hyphenation,
     fix_hyphenation_file,
+    markdown_assets_output_path,
+    output_format_from_path,
     sanitize_filename,
     suggested_output_name,
     validate_options,
@@ -75,6 +79,11 @@ def test_filename_helpers_preserve_unicode_and_handle_empty_values() -> None:
     assert sanitize_filename("...", fallback="fallback") == "fallback"
     assert suggested_output_name(BookMetadata("Kitap", "Yazar")) == "Kitap - Yazar.epub"
     assert suggested_output_name(BookMetadata("Kitap")) == "Kitap.epub"
+    assert suggested_output_name(BookMetadata("Kitap"), "markdown") == "Kitap.md"
+    assert suggested_output_name(BookMetadata("Kitap"), "mobi") == "Kitap.mobi"
+    assert output_format_from_path(Path("BOOK.MD")) == "markdown"
+    with pytest.raises(ConversionError, match="extensions"):
+        output_format_from_path(Path("book.txt"))
 
 
 def test_fix_hyphenation_only_merges_lowercase_continuations(tmp_path: Path) -> None:
@@ -182,6 +191,64 @@ def test_create_epub_requires_output_file(monkeypatch: pytest.MonkeyPatch, tmp_p
         create_epub(tmp_path / "book.md", tmp_path / "book.epub", BookMetadata("Book"), None)
 
 
+def test_export_markdown_copies_assets_and_rewrites_links(tmp_path: Path) -> None:
+    source = tmp_path / "work" / "book.md"
+    assets = source.parent / "assets"
+    assets.mkdir(parents=True)
+    source.write_text("![Kapak](assets/cover.png)\n", encoding="utf-8")
+    (assets / "cover.png").write_bytes(b"image")
+    output = tmp_path / "output" / "kitap.md"
+    output.parent.mkdir()
+
+    export_markdown(source, assets, output, overwrite=False)
+
+    output_assets = markdown_assets_output_path(output)
+    assert output.read_text(encoding="utf-8") == "![Kapak](kitap_assets/cover.png)\n"
+    assert (output_assets / "cover.png").read_bytes() == b"image"
+
+    with pytest.raises(ConversionError, match="assets already exist"):
+        export_markdown(source, assets, output, overwrite=False)
+
+    (output_assets / "old.png").write_bytes(b"old")
+    export_markdown(source, assets, output, overwrite=True)
+    assert not (output_assets / "old.png").exists()
+
+
+def test_create_mobi_uses_calibre_and_checks_result(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    markdown = tmp_path / "book.md"
+    markdown.write_text("# Book", encoding="utf-8")
+    mobi = tmp_path / "book.mobi"
+    monkeypatch.setattr("pdf_to_epub.converter.find_ebook_convert", lambda: "ebook-convert")
+
+    def fake_epub(_markdown: Path, epub: Path, _metadata: BookMetadata, _css: Path | None) -> None:
+        epub.write_bytes(b"epub")
+
+    def fake_run(command: list[str], **_kwargs: object) -> types.SimpleNamespace:
+        assert command[0] == "ebook-convert"
+        Path(command[2]).write_bytes(b"mobi")
+        return types.SimpleNamespace(returncode=0, stderr="", stdout="")
+
+    monkeypatch.setattr("pdf_to_epub.converter.create_epub", fake_epub)
+    monkeypatch.setattr("pdf_to_epub.converter.subprocess.run", fake_run)
+    create_mobi(markdown, mobi, BookMetadata("Book"), None)
+    assert mobi.read_bytes() == b"mobi"
+
+    monkeypatch.setattr(
+        "pdf_to_epub.converter.subprocess.run",
+        Mock(
+            return_value=types.SimpleNamespace(returncode=1, stderr="conversion failed", stdout="")
+        ),
+    )
+    with pytest.raises(ConversionError, match="conversion failed"):
+        create_mobi(markdown, mobi, BookMetadata("Book"), None)
+
+    monkeypatch.setattr("pdf_to_epub.converter.find_ebook_convert", lambda: None)
+    with pytest.raises(ConversionError, match="Calibre"):
+        create_mobi(markdown, mobi, BookMetadata("Book"), None)
+
+
 def test_check_runtime_handles_missing_tools_and_cpu(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("pdf_to_epub.converter.shutil.which", lambda _name: None)
     with pytest.raises(ConversionError, match="Pandoc"):
@@ -192,6 +259,23 @@ def test_check_runtime_handles_missing_tools_and_cpu(monkeypatch: pytest.MonkeyP
     monkeypatch.setitem(sys.modules, "torch", fake_torch)
     with pytest.raises(ConversionError, match="CUDA is not available"):
         check_runtime()
+
+
+def test_check_runtime_only_requires_format_specific_tools(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("pdf_to_epub.converter.shutil.which", lambda _name: None)
+    monkeypatch.setitem(sys.modules, "torch", fake_torch(total_gib=8, free_gib=8))
+    assert check_runtime("markdown") is None
+    with pytest.raises(ConversionError, match="Pandoc"):
+        check_runtime("epub")
+
+    monkeypatch.setattr(
+        "pdf_to_epub.converter.shutil.which", lambda name: "pandoc" if name == "pandoc" else None
+    )
+    monkeypatch.setattr("pdf_to_epub.converter.find_ebook_convert", lambda: None)
+    with pytest.raises(ConversionError, match="Calibre"):
+        check_runtime("mobi")
 
 
 def test_check_runtime_warns_when_available_vram_is_low(
@@ -293,6 +377,56 @@ def test_conversion_forwards_options_and_cleans_successful_workdir(
     assert progress[3].percentage == 10
     assert progress[4].message == "Completed PDF page"
     assert progress[4].percentage == 20
+
+
+def test_conversion_can_publish_markdown_with_assets(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setattr("pdf_to_epub.converter.configure_huggingface_cache", lambda _path: True)
+
+    def transform_markdown(**kwargs: object) -> None:
+        markdown = Path(str(kwargs["markdown_path"]))
+        assets = Path(str(kwargs["markdown_assets_path"]))
+        assets.mkdir(parents=True)
+        (assets / "page.png").write_bytes(b"image")
+        markdown.write_text("ke-\nlimeler\n\n![](assets/page.png)", encoding="utf-8")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "pdf_craft",
+        types.SimpleNamespace(transform_markdown=transform_markdown),
+    )
+    selected = options(tmp_path, epub_path=tmp_path / "result.md")
+    result = convert_pdf(selected)
+
+    assert result.output_format == "markdown"
+    assert "kelimeler" in result.output_path.read_text(encoding="utf-8")
+    assert "result_assets/page.png" in result.output_path.read_text(encoding="utf-8")
+    assert (tmp_path / "result_assets" / "page.png").read_bytes() == b"image"
+
+
+def test_conversion_can_publish_mobi(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setattr("pdf_to_epub.converter.configure_huggingface_cache", lambda _path: True)
+
+    def transform_markdown(**kwargs: object) -> None:
+        Path(str(kwargs["markdown_path"])).write_text("# Book", encoding="utf-8")
+
+    def fake_mobi(_markdown: Path, mobi: Path, _metadata: BookMetadata, _css: Path | None) -> None:
+        mobi.write_bytes(b"mobi")
+
+    monkeypatch.setitem(
+        sys.modules,
+        "pdf_craft",
+        types.SimpleNamespace(transform_markdown=transform_markdown),
+    )
+    monkeypatch.setattr("pdf_to_epub.converter.create_mobi", fake_mobi)
+    selected = options(tmp_path, epub_path=tmp_path / "result.mobi")
+    progress: list[ConversionProgress] = []
+    result = convert_pdf(selected, progress.append)
+
+    assert result.output_format == "mobi"
+    assert result.output_path.read_bytes() == b"mobi"
+    assert progress[-1].message == "Building MOBI with Calibre"
 
 
 def test_conversion_progress_percentage_handles_unknown_and_bounds() -> None:

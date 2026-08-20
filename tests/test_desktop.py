@@ -7,9 +7,12 @@ import pytest
 from pdf_to_epub.converter import ConversionProgress
 from pdf_to_epub.desktop import (
     DEFAULT_MODEL_LABEL,
+    DEFAULT_OUTPUT_FORMAT_LABEL,
     MODEL_LABELS,
+    OUTPUT_FORMAT_LABELS,
     build_conversion_options,
     default_epub_path,
+    default_output_path,
     friendly_error,
     friendly_progress,
     load_theme_preference,
@@ -26,6 +29,14 @@ def test_default_epub_path_uses_book_metadata(tmp_path: Path) -> None:
     )
     assert default_epub_path(pdf, "", "") == tmp_path / "tarama.epub"
     assert default_epub_path(pdf, "Tarama", "Bilinmiyor") == tmp_path / "Tarama.epub"
+    markdown_label = next(
+        label
+        for label, output_format in OUTPUT_FORMAT_LABELS.items()
+        if output_format == "markdown"
+    )
+    assert default_output_path(pdf, "Tarama", "Bilinmiyor", markdown_label) == (
+        tmp_path / "Tarama.md"
+    )
 
 
 def test_build_conversion_options_maps_desktop_defaults(tmp_path: Path) -> None:
@@ -52,6 +63,41 @@ def test_build_conversion_options_maps_desktop_defaults(tmp_path: Path) -> None:
     assert options.dpi == 300
     assert options.overwrite is True
     assert options.css_path is not None
+    assert options.output_format == "epub"
+    assert DEFAULT_OUTPUT_FORMAT_LABEL in OUTPUT_FORMAT_LABELS
+
+
+def test_build_conversion_options_accepts_matching_markdown_format(tmp_path: Path) -> None:
+    pdf = tmp_path / "kitap.pdf"
+    pdf.write_bytes(b"%PDF")
+    markdown_label = next(
+        label
+        for label, output_format in OUTPUT_FORMAT_LABELS.items()
+        if output_format == "markdown"
+    )
+    options = build_conversion_options(
+        pdf_path=pdf,
+        epub_path=tmp_path / "kitap.md",
+        title="Kitap",
+        author="Yazar",
+        language="tr",
+        model_label=DEFAULT_MODEL_LABEL,
+        overwrite=False,
+        output_format_label=markdown_label,
+    )
+    assert options.output_format == "markdown"
+
+    with pytest.raises(ValueError, match="eşleşmiyor"):
+        build_conversion_options(
+            pdf_path=pdf,
+            epub_path=tmp_path / "kitap.epub",
+            title="Kitap",
+            author="Yazar",
+            language="tr",
+            model_label=DEFAULT_MODEL_LABEL,
+            overwrite=False,
+            output_format_label=markdown_label,
+        )
 
 
 @pytest.mark.parametrize(

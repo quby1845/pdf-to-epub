@@ -7,6 +7,16 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-08-20
+
+### Added
+
+- Add EPUB, editable Markdown, and legacy MOBI output choices to both the desktop application and
+  CLI. Markdown exports keep OCR images in a sibling assets directory; MOBI packaging uses
+  Calibre's `ebook-convert`.
+- Install and validate Calibre in the Windows easy setup and Docker image, with format-specific
+  runtime checks and actionable errors.
+
 ## [0.6.4] - 2026-08-20
 
 ### Changed
@@ -173,7 +183,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.4...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.4...v0.7.0
 [0.6.4]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.3...v0.6.4
 [0.6.3]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.2...v0.6.3
 [0.6.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.6.1...v0.6.2

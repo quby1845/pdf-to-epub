@@ -12,6 +12,7 @@ def test_docker_image_contains_gpu_runtime_and_required_tools() -> None:
     assert "https://download.pytorch.org/whl/cu126" in dockerfile
     assert "pandoc" in dockerfile
     assert "poppler-utils" in dockerfile
+    assert "calibre" in dockerfile
     assert "USER app" in dockerfile
     assert 'ENTRYPOINT ["/usr/bin/tini", "--", "pdf-to-epub-ocr"]' in dockerfile
 

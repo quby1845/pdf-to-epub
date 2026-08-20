@@ -151,6 +151,24 @@ function Find-NvidiaSmi {
     return $null
 }
 
+function Find-EbookConvert {
+    $command = Get-Command "ebook-convert" -ErrorAction SilentlyContinue
+    if ($command) {
+        return $command.Source
+    }
+    $programFilesX86 = [Environment]::GetEnvironmentVariable("ProgramFiles(x86)")
+    $knownPaths = @((Join-Path $env:ProgramFiles "Calibre2\ebook-convert.exe"))
+    if ($programFilesX86) {
+        $knownPaths += Join-Path $programFilesX86 "Calibre2\ebook-convert.exe"
+    }
+    foreach ($knownPath in $knownPaths) {
+        if ($knownPath -and (Test-Path -LiteralPath $knownPath)) {
+            return $knownPath
+        }
+    }
+    return $null
+}
+
 function Get-NvidiaGpuProfile {
     param([string] $NvidiaSmi)
     if (-not $NvidiaSmi) {
@@ -374,7 +392,7 @@ if ($LASTEXITCODE -ne 0) {
     throw "Bagimlilik kurulumundan sonra PyTorch/CUDA dogrulamasi basarisiz oldu."
 }
 
-Write-Host "[6/7] Pandoc ve Poppler kontrol ediliyor..." -ForegroundColor Green
+Write-Host "[6/7] Pandoc, Poppler ve MOBI bilesenleri kontrol ediliyor..." -ForegroundColor Green
 if (-not (Get-Command pandoc -ErrorAction SilentlyContinue)) {
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         Install-WingetPackage -Id "JohnMacFarlane.Pandoc" -DisplayName "Pandoc"
@@ -388,6 +406,16 @@ if (-not (Get-Command pdftoppm -ErrorAction SilentlyContinue)) {
     } else {
         throw "Poppler bulunamadi. Poppler'i kurup bin klasorunu PATH'e ekleyin."
     }
+}
+if (-not (Find-EbookConvert)) {
+    if (Get-Command winget -ErrorAction SilentlyContinue) {
+        Install-WingetPackage -Id "calibre.calibre" -DisplayName "Calibre MOBI destegi"
+    } else {
+        throw "MOBI cikisi icin Calibre bulunamadi. https://calibre-ebook.com/download adresinden kurun."
+    }
+}
+if (-not (Find-EbookConvert)) {
+    throw "Calibre kuruldu ancak ebook-convert bulunamadi. KURULUM.bat dosyasini yeniden acin."
 }
 
 Write-Host "[7/7] Masaustu kisayolu hazirlaniyor..." -ForegroundColor Green
@@ -405,7 +433,7 @@ try {
         $shortcut.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$launchScript`""
         $shortcut.WorkingDirectory = $PSScriptRoot
         $shortcut.IconLocation = "$guiLauncher,0"
-        $shortcut.Description = "Taranmis PDF dosyalarini EPUB'a donustur"
+        $shortcut.Description = "Taranmis PDF dosyalarini e-kitaba donustur"
         $shortcut.Save()
     }
 } catch {

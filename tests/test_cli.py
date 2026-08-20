@@ -5,7 +5,12 @@ from pathlib import Path
 import pytest
 
 from pdf_to_epub import cli
-from pdf_to_epub.converter import ConversionError, ConversionProgress, ConversionResult
+from pdf_to_epub.converter import (
+    BookMetadata,
+    ConversionError,
+    ConversionProgress,
+    ConversionResult,
+)
 
 
 def test_noninteractive_cli_builds_expected_options(
@@ -17,7 +22,7 @@ def test_noninteractive_cli_builds_expected_options(
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(cli, "configure_logging", lambda: tmp_path / "app.log")
-    monkeypatch.setattr(cli, "check_runtime", lambda: None)
+    monkeypatch.setattr(cli, "check_runtime", lambda _output_format="epub": None)
 
     def fake_convert(options, progress):
         captured["options"] = options
@@ -39,7 +44,7 @@ def test_cli_reports_conversion_error(
     pdf = tmp_path / "scan.pdf"
     pdf.write_bytes(b"%PDF")
     monkeypatch.setattr(cli, "configure_logging", lambda: tmp_path / "app.log")
-    monkeypatch.setattr(cli, "check_runtime", lambda: None)
+    monkeypatch.setattr(cli, "check_runtime", lambda _output_format="epub": None)
     monkeypatch.setattr(
         cli, "convert_pdf", lambda *_args, **_kwargs: (_ for _ in ()).throw(ConversionError("boom"))
     )
@@ -82,3 +87,21 @@ def test_interactive_metadata_uses_defaults(
 def test_cli_prints_page_progress(capsys: pytest.CaptureFixture[str]) -> None:
     cli._progress(ConversionProgress("Reading PDF page", "ocr", 84, 327, 83))
     assert "Page 84/327 (25%)" in capsys.readouterr().out
+
+
+def test_output_selection_infers_or_applies_requested_format(tmp_path: Path) -> None:
+    metadata = BookMetadata("Book", "Author")
+    output, output_format = cli._output_selection(tmp_path / "book.mobi", None, metadata)
+    assert output == tmp_path / "book.mobi"
+    assert output_format == "mobi"
+
+    output, output_format = cli._output_selection(tmp_path / "notes", "markdown", metadata)
+    assert output == tmp_path / "notes.md"
+    assert output_format == "markdown"
+
+    output, output_format = cli._output_selection(None, "markdown", metadata)
+    assert output.name == "Book - Author.md"
+    assert output_format == "markdown"
+
+    with pytest.raises(ConversionError, match="does not match"):
+        cli._output_selection(tmp_path / "book.epub", "mobi", metadata)
