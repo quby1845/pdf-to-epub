@@ -56,6 +56,15 @@ jobs:
           findstr /x "PDF_TO_EPUB_INSTALLER_OK" installer-self-test.txt
           call PDF-TO-EPUB.bat --self-test > launcher-self-test.txt
           findstr /x "PDF_TO_EPUB_LAUNCHER_OK" launcher-self-test.txt
+      - name: Verify installer failures stay diagnosable
+        shell: powershell
+        run: |
+          $output = & cmd.exe /d /c .\KURULUM.bat --failure-self-test 2>&1
+          if ($LASTEXITCODE -eq 0) { throw "Simulated installer failure unexpectedly succeeded." }
+          if ($output -notcontains "PDF_TO_EPUB_INSTALLER_FAILURE_OK") { throw "Failure path marker was missing: $output" }
+          $logPath = Join-Path $env:LocalAppData "PDF-to-EPUB-OCR\logs\install-error.log"
+          if (-not (Test-Path $logPath)) { throw "Installer error log was not created." }
+          if ((Get-Content -Raw $logPath) -notmatch "simulated installer failure") { throw "Installer error was not persisted." }
       - name: Smoke test Windows PowerShell scripts
         shell: powershell
         run: |

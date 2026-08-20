@@ -71,3 +71,12 @@ def test_windows_setup_runs_multiline_torch_probe_from_a_file() -> None:
     assert '("p2e-python-" + [guid]::NewGuid() + ".py")' in setup
     assert "& $venvPython -c $torchProbe" not in setup
     assert setup.count("Invoke-PythonCode -Command $venvPython -Code $torchProbe") == 2
+
+
+def test_windows_installer_keeps_errors_visible_and_writes_a_log() -> None:
+    launcher = Path("KURULUM.bat").read_text(encoding="ascii")
+    assert "install-error.log" in launcher
+    assert '2>"%INSTALL_ERROR_LOG%"' in launcher
+    assert 'notepad.exe "%INSTALL_ERROR_LOG%"' in launcher
+    assert "PDF_TO_EPUB_INSTALLER_FAILURE_OK" in launcher
+    assert 'choice /c K /n /m "Pencereyi kapatmak icin K tusuna basin: "' in launcher

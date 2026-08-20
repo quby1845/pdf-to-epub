@@ -7,6 +7,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-08-20
+
+### Fixed
+
+- Keep the Windows installer open after a failure, save the PowerShell error to
+  `%LOCALAPPDATA%\PDF-to-EPUB-OCR\logs\install-error.log`, and open that log in Notepad.
+
 ## [0.8.2] - 2026-08-20
 
 ### Fixed
@@ -210,7 +217,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Use Pandoc's resource path correctly when embedding extracted assets.
 - Refuse to overwrite an existing EPUB unless explicitly requested.
 
-[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.2...HEAD
+[Unreleased]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.3...HEAD
+[0.8.3]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/quby1845/pdf-to-epub/compare/v0.7.0...v0.8.0
