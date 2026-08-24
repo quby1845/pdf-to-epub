@@ -350,15 +350,48 @@ except Exception as error:
 "@
 }
 
+function Test-WingetPackageInstalled {
+    param([Parameter(Mandatory = $true)] [string] $Id)
+    & winget list --exact --id $Id --accept-source-agreements --disable-interactivity *> $null
+    return $LASTEXITCODE -eq 0
+}
+
+function Test-VisualCppRuntime {
+    $registryPaths = @(
+        "HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+    )
+    foreach ($path in $registryPaths) {
+        try {
+            $runtime = Get-ItemProperty -LiteralPath $path -ErrorAction Stop
+            if ($runtime.Installed -eq 1) { return $true }
+        } catch {
+            # Some valid installations do not expose this registry key; check the DLLs below.
+        }
+    }
+    $systemDirectory = [Environment]::GetFolderPath([Environment+SpecialFolder]::System)
+    return (Test-Path -LiteralPath (Join-Path $systemDirectory "vcruntime140.dll")) -and
+        (Test-Path -LiteralPath (Join-Path $systemDirectory "msvcp140.dll"))
+}
+
 function Install-WingetPackage {
     param(
         [Parameter(Mandatory = $true)] [string] $Id,
         [Parameter(Mandatory = $true)] [string] $DisplayName
     )
+    if (Test-WingetPackageInstalled -Id $Id) {
+        Write-Host "$DisplayName is already installed." -ForegroundColor Yellow
+        return
+    }
     Write-Host "Installing $DisplayName..." -ForegroundColor Green
     winget install --exact --id $Id --accept-source-agreements --accept-package-agreements --silent
-    if ($LASTEXITCODE -ne 0) {
-        throw "$DisplayName could not be installed (winget exit code: $LASTEXITCODE)."
+    $installExitCode = $LASTEXITCODE
+    if ($installExitCode -ne 0) {
+        if (Test-WingetPackageInstalled -Id $Id) {
+            Write-Host "$DisplayName is installed; winget reported no applicable upgrade." -ForegroundColor Yellow
+            return
+        }
+        throw "$DisplayName could not be installed (winget exit code: $installExitCode)."
     }
 }
 
@@ -542,8 +575,17 @@ Write-Host "Graphics card: $($gpuProfile.Name); backend: $($gpuProfile.Vendor)" 
 if (-not (Test-PythonCommand -Command $venvPython -Code $torchProbe)) {
     if ($gpuProfile.Vendor -eq "amd") {
         Write-Host "Installing AMD ROCm 7.2.1 and compatible PyTorch..." -ForegroundColor Green
-        if (Get-Command winget -ErrorAction SilentlyContinue) {
-            Install-WingetPackage -Id "Microsoft.VCRedist.2015+.x64" -DisplayName "Visual C++ Runtime"
+        if (Test-VisualCppRuntime) {
+            Write-Host "Visual C++ Runtime is already installed and valid." -ForegroundColor Yellow
+        } elseif (Get-Command winget -ErrorAction SilentlyContinue) {
+            Install-WingetPackage `
+                -Id "Microsoft.VCRedist.2015+.x64" `
+                -DisplayName "Visual C++ Runtime"
+            if (-not (Test-VisualCppRuntime)) {
+                throw "Visual C++ Runtime installation completed but its runtime files were not found."
+            }
+        } else {
+            throw "Visual C++ Runtime is missing and winget is unavailable. Install the Microsoft Visual C++ 2015-2022 x64 Redistributable first."
         }
         Install-AmdRocmPyTorch -PythonCommand $venvPython
     } else {
@@ -634,4 +676,3 @@ Write-Host "Open PDF to EPUB OCR from the desktop or Start menu." -ForegroundCol
 if ($LogPath) {
     Stop-Transcript | Out-Null
 }
-

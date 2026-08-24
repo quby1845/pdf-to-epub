@@ -75,6 +75,17 @@ def test_windows_setup_contains_verified_amd_rocm_path() -> None:
     assert 'if ($gpuProfile.Vendor -eq "amd")' in setup
 
 
+def test_windows_setup_accepts_an_existing_visual_cpp_runtime() -> None:
+    setup = Path("setup.ps1").read_text(encoding="ascii")
+    assert "function Test-VisualCppRuntime" in setup
+    assert "VC\\Runtimes\\x64" in setup
+    assert "vcruntime140.dll" in setup
+    assert "msvcp140.dll" in setup
+    assert "function Test-WingetPackageInstalled" in setup
+    assert "winget reported no applicable upgrade" in setup
+    assert "if (Test-VisualCppRuntime)" in setup
+
+
 def test_windows_setup_runs_multiline_torch_probe_from_a_file() -> None:
     setup = Path("setup.ps1").read_text(encoding="ascii")
     assert "function Invoke-PythonCode" in setup

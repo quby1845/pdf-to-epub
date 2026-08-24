@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.1] - 2026-08-24
+
+### Fixed
+
+- Do not abort AMD ROCm setup when the Microsoft Visual C++ Runtime is already installed and
+  `winget` returns its "no applicable upgrade" result. Setup now verifies the runtime through
+  its registry marker and system DLLs before invoking `winget`, then rechecks it after install.
+- Treat an installed `winget` package as success even when the install command reports a
+  non-zero no-upgrade result, while continuing to fail for genuinely missing packages.
+
 ## [0.11.0] - 2026-08-24
 
 ### Added

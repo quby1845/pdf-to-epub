@@ -199,7 +199,7 @@ EOF
 <key>CFBundleName</key><string>PDF to EPUB OCR</string>
 <key>CFBundleDisplayName</key><string>PDF to EPUB OCR</string>
 <key>CFBundleIdentifier</key><string>io.github.quby1845.pdf-to-epub-ocr</string>
-<key>CFBundleVersion</key><string>0.11.0</string>
+<key>CFBundleVersion</key><string>0.11.1</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleExecutable</key><string>pdf-to-epub-ocr</string>
 </dict></plist>
