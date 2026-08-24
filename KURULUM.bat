@@ -20,11 +20,11 @@ if /I "%~1"=="--failure-self-test" (
 title PDF to EPUB OCR - Setup
 echo.
 echo ========================================
-echo   PDF to EPUB OCR - Kolay Kurulum
+echo   PDF to EPUB OCR - Legacy Setup
 echo ========================================
 echo.
-echo Gerekli programlar ve OCR bilesenleri kurulacak.
-echo Ilk kurulum internet hizina gore 10-30 dakika surebilir.
+echo Required applications and OCR components will be installed.
+echo The first setup can take 10-30 minutes depending on your connection.
 echo.
 
 "%POWERSHELL%" -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup.ps1" 2>"%INSTALL_ERROR_LOG%"
@@ -33,43 +33,44 @@ if not "%SETUP_RESULT%"=="0" goto setup_failed
 if not exist "%LocalAppData%\PDF-to-EPUB-OCR\venv\Scripts\pdf-to-epub-gui.exe" goto launcher_missing
 
 echo.
-echo Kurulum tamamlandi. Uygulama aciliyor...
+echo Setup completed. Opening the application...
 timeout /t 2 /nobreak >nul
 call "%~dp0PDF-TO-EPUB.bat"
 exit /b %errorlevel%
 
 :powershell_missing
 echo.
-echo [HATA] Windows PowerShell bulunamadi.
+echo [ERROR] Windows PowerShell was not found.
 pause
 exit /b 1
 
 :setup_failed
 echo.
-echo [HATA] Kurulum tamamlanamadi.
+echo [ERROR] Setup could not be completed.
 if exist "%INSTALL_ERROR_LOG%" (
     echo.
     type "%INSTALL_ERROR_LOG%"
     echo.
-    echo Ayrintili hata gunlugu: %INSTALL_ERROR_LOG%
-    if not defined PDF_TO_EPUB_INSTALLER_TEST start "PDF to EPUB OCR - Kurulum Hatasi" notepad.exe "%INSTALL_ERROR_LOG%"
+    echo Detailed error log: %INSTALL_ERROR_LOG%
+    if not defined PDF_TO_EPUB_INSTALLER_TEST start "PDF to EPUB OCR - Setup Error" notepad.exe "%INSTALL_ERROR_LOG%"
 )
 if defined PDF_TO_EPUB_INSTALLER_TEST (
     echo PDF_TO_EPUB_INSTALLER_FAILURE_OK
     exit /b %SETUP_RESULT%
 )
 echo.
-echo Bu pencere otomatik kapanmayacak.
-choice /c K /n /m "Pencereyi kapatmak icin K tusuna basin: "
+echo This window will remain open.
+choice /c C /n /m "Press C to close this window: "
 exit /b %SETUP_RESULT%
 
 :launcher_missing
 echo.
-echo [HATA] Kurulum tamamlandi ancak uygulama baslaticisi olusmadi.
-echo KURULUM.bat dosyasini yeniden calistirin.
+echo [ERROR] Setup finished but the application launcher is missing.
+echo Run KURULUM.bat again.
 pause
 exit /b 1
 
 :self_test
 echo PDF_TO_EPUB_INSTALLER_OK
 exit /b 0
+

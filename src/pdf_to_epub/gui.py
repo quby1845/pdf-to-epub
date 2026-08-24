@@ -1,4 +1,4 @@
-"""Modern Turkish desktop interface for PDF to EPUB OCR."""
+"""Modern bilingual desktop interface for PDF to EPUB OCR."""
 
 from __future__ import annotations
 
@@ -9,6 +9,7 @@ import subprocess
 import sys
 import threading
 import tkinter as tk
+import webbrowser
 from collections.abc import Callable
 from dataclasses import dataclass, replace
 from pathlib import Path
@@ -24,21 +25,33 @@ from pdf_to_epub.converter import (
     convert_pdf,
 )
 from pdf_to_epub.desktop import (
-    DEFAULT_MODEL_LABEL,
-    DEFAULT_OUTPUT_FORMAT_LABEL,
-    MODEL_LABELS,
-    OUTPUT_FORMAT_LABELS,
     build_conversion_options,
+    default_model_label,
+    default_output_format_label,
     default_output_path,
     friendly_error,
     friendly_progress,
+    load_language_preference,
     load_theme_preference,
     model_description,
+    model_labels,
+    output_format_labels,
     progress_stage,
+    save_language_preference,
     save_theme_preference,
 )
 from pdf_to_epub.diagnostics import configure_logging, diagnostic_log_path
+from pdf_to_epub.i18n import translate
 from pdf_to_epub.icons import create_app_icon, create_icon
+from pdf_to_epub.localsend import (
+    SUPPORTED_EXTENSIONS,
+    LocalSendDevice,
+    LocalSendError,
+    discover_devices,
+    parse_device_address,
+    probe_device,
+    send_file,
+)
 from pdf_to_epub.processes import install_gui_subprocess_policy
 
 logger = logging.getLogger(__name__)
@@ -125,6 +138,301 @@ THEMES = {
 }
 
 
+class KOReaderSendDialog:
+    """Modal device picker and transfer progress window."""
+
+    PLUGIN_URL = "https://github.com/kaikozlov/localsend.koplugin"
+
+    def __init__(self, app: PdfToEpubApp, file_path: Path) -> None:
+        self.app = app
+        self.file_path = file_path
+        self.devices: list[LocalSendDevice] = []
+        self.events: queue.Queue[tuple[str, object]] = queue.Queue()
+        self.working = False
+
+        theme = app.theme
+        self.window = tk.Toplevel(app.root)
+        self.window.title(app._t("koreader_title"))
+        self.window.geometry("620x590")
+        self.window.minsize(540, 520)
+        self.window.transient(app.root)
+        self.window.configure(background=theme.background)
+        self.window.protocol("WM_DELETE_WINDOW", self._close)
+        self.window.grab_set()
+
+        card = tk.Frame(self.window, background=theme.card, padx=24, pady=22)
+        card.pack(fill="both", expand=True, padx=18, pady=18)
+        tk.Label(
+            card,
+            text=app._t("koreader_title"),
+            font=("Segoe UI", 18, "bold"),
+            foreground=theme.ink,
+            background=theme.card,
+        ).pack(anchor="w")
+        tk.Label(
+            card,
+            text=app._t("koreader_body"),
+            font=("Segoe UI", 10),
+            foreground=theme.muted,
+            background=theme.card,
+            justify="left",
+            wraplength=540,
+        ).pack(anchor="w", pady=(6, 16))
+        tk.Label(
+            card,
+            text=app._t("koreader_devices"),
+            font=("Segoe UI", 9, "bold"),
+            foreground=theme.ink,
+            background=theme.card,
+        ).pack(anchor="w", pady=(0, 6))
+
+        list_frame = tk.Frame(card, background=theme.border, padx=1, pady=1)
+        list_frame.pack(fill="both", expand=True)
+        self.device_list = tk.Listbox(
+            list_frame,
+            height=6,
+            font=("Segoe UI", 10),
+            foreground=theme.ink,
+            background=theme.field,
+            selectforeground="white",
+            selectbackground=theme.primary,
+            activestyle="none",
+            relief="flat",
+            borderwidth=0,
+            highlightthickness=0,
+        )
+        self.device_list.pack(fill="both", expand=True)
+
+        manual_row = tk.Frame(card, background=theme.card)
+        manual_row.pack(fill="x", pady=(15, 0))
+        manual_row.columnconfigure(0, weight=3)
+        manual_row.columnconfigure(1, weight=2)
+        tk.Label(
+            manual_row,
+            text=app._t("koreader_manual"),
+            font=("Segoe UI", 9, "bold"),
+            foreground=theme.ink,
+            background=theme.card,
+        ).grid(row=0, column=0, sticky="w")
+        tk.Label(
+            manual_row,
+            text=app._t("koreader_pin"),
+            font=("Segoe UI", 9, "bold"),
+            foreground=theme.ink,
+            background=theme.card,
+        ).grid(row=0, column=1, sticky="w", padx=(12, 0))
+        self.manual_var = tk.StringVar()
+        self.pin_var = tk.StringVar()
+        self.manual_entry = ttk.Entry(
+            manual_row,
+            textvariable=self.manual_var,
+            style="App.TEntry",
+        )
+        self.manual_entry.grid(row=1, column=0, sticky="ew", pady=(5, 0))
+        self.pin_entry = ttk.Entry(
+            manual_row,
+            textvariable=self.pin_var,
+            style="App.TEntry",
+            show="•",
+        )
+        self.pin_entry.grid(row=1, column=1, sticky="ew", padx=(12, 0), pady=(5, 0))
+
+        self.status_var = tk.StringVar(value=app._t("koreader_scanning"))
+        self.status_label = tk.Label(
+            card,
+            textvariable=self.status_var,
+            font=("Segoe UI", 9),
+            foreground=theme.muted,
+            background=theme.card,
+            justify="left",
+            wraplength=540,
+        )
+        self.status_label.pack(fill="x", pady=(14, 6))
+        self.progress = ttk.Progressbar(
+            card,
+            mode="indeterminate",
+            style="Primary.Horizontal.TProgressbar",
+        )
+        self.progress.pack(fill="x", pady=(0, 14))
+
+        buttons = tk.Frame(card, background=theme.card)
+        buttons.pack(fill="x")
+        self.help_button = app._button(
+            buttons,
+            app._t("koreader_plugin_help"),
+            lambda: webbrowser.open(self.PLUGIN_URL),
+            compact=True,
+            icon="external",
+        )
+        self.help_button.pack(side="left")
+        self.close_button = app._button(
+            buttons,
+            app._t("koreader_close"),
+            self._close,
+            compact=True,
+        )
+        self.close_button.pack(side="right")
+        self.send_button = app._button(
+            buttons,
+            app._t("koreader_send"),
+            self._start_send,
+            primary=True,
+            compact=True,
+            icon="send",
+        )
+        self.send_button.pack(side="right", padx=(0, 8))
+        self.scan_button = app._button(
+            buttons,
+            app._t("koreader_rescan"),
+            self._start_scan,
+            compact=True,
+            icon="scan",
+        )
+        self.scan_button.pack(side="right", padx=(0, 8))
+
+        self.window.after(100, self._poll_events)
+        self.window.after(150, self._start_scan)
+
+    def _set_working(self, working: bool) -> None:
+        self.working = working
+        state = "disabled" if working else "normal"
+        cursor = "arrow" if working else "hand2"
+        self.scan_button.configure(state=state, cursor=cursor)
+        self.send_button.configure(state=state, cursor=cursor)
+        self.close_button.configure(state=state, cursor=cursor)
+        self.manual_entry.configure(state=state)
+        self.pin_entry.configure(state=state)
+        if working:
+            self.progress.configure(mode="indeterminate")
+            self.progress.start(12)
+        else:
+            self.progress.stop()
+
+    def _start_scan(self) -> None:
+        if self.working:
+            return
+        self._set_working(True)
+        self.status_var.set(self.app._t("koreader_scanning"))
+        self.device_list.delete(0, "end")
+        self.devices.clear()
+        threading.Thread(target=self._scan, daemon=True).start()
+
+    def _scan(self) -> None:
+        try:
+            self.events.put(("devices", discover_devices()))
+        except Exception as error:
+            logger.exception("LocalSend discovery failed.")
+            self.events.put(("error", str(error)))
+
+    def _start_send(self) -> None:
+        if self.working:
+            return
+        selection = self.device_list.curselection()
+        selected = self.devices[selection[0]] if selection else None
+        manual = self.manual_var.get().strip()
+        if selected is None and not manual:
+            messagebox.showwarning(
+                self.app._t("koreader_title"),
+                self.app._t("koreader_select"),
+                parent=self.window,
+            )
+            return
+        self._set_working(True)
+        self.status_var.set(self.app._t("koreader_connecting"))
+        threading.Thread(
+            target=self._transfer,
+            args=(selected, manual, self.pin_var.get()),
+            daemon=True,
+        ).start()
+
+    def _transfer(
+        self,
+        selected: LocalSendDevice | None,
+        manual: str,
+        pin: str,
+    ) -> None:
+        try:
+            device = selected
+            if device is None:
+                host, port = parse_device_address(manual)
+                device = probe_device(host, port)
+            self.events.put(("status", self.app._t("koreader_waiting")))
+            result = send_file(
+                device,
+                self.file_path,
+                pin=pin,
+                progress=lambda sent, total: self.events.put(
+                    ("progress", (sent, total))
+                ),
+            )
+            self.events.put(("sent", result))
+        except (LocalSendError, ValueError) as error:
+            logger.exception("LocalSend transfer failed.")
+            self.events.put(("error", str(error)))
+        except Exception as error:
+            logger.exception("Unexpected LocalSend transfer failure.")
+            self.events.put(("error", str(error)))
+
+    def _poll_events(self) -> None:
+        if not self.window.winfo_exists():
+            return
+        try:
+            while True:
+                kind, payload = self.events.get_nowait()
+                if kind == "devices":
+                    self.devices = list(payload)  # type: ignore[arg-type]
+                    self.device_list.delete(0, "end")
+                    for device in self.devices:
+                        details = device.device_model or device.device_type or "LocalSend"
+                        self.device_list.insert(
+                            "end", f"{device.alias}  —  {device.address}  ·  {details}"
+                        )
+                    if len(self.devices) == 1:
+                        self.device_list.selection_set(0)
+                    self.status_var.set(
+                        self.app._t("koreader_found", count=len(self.devices))
+                        if self.devices
+                        else self.app._t("koreader_none")
+                    )
+                    self._set_working(False)
+                elif kind == "status":
+                    self.status_var.set(str(payload))
+                elif kind == "progress":
+                    sent, total = payload  # type: ignore[misc]
+                    percent = round((sent / total) * 100) if total else 100
+                    self.progress.stop()
+                    self.progress.configure(mode="determinate", maximum=100, value=percent)
+                    self.status_var.set(self.app._t("koreader_sending", percent=percent))
+                elif kind == "sent":
+                    result = payload
+                    self.progress.stop()
+                    self.progress.configure(mode="determinate", maximum=100, value=100)
+                    self.status_var.set(
+                        self.app._t(
+                            "koreader_sent",
+                            name=result.file_path.name,  # type: ignore[union-attr]
+                            device=result.device.alias,  # type: ignore[union-attr]
+                        )
+                    )
+                    self._set_working(False)
+                elif kind == "error":
+                    self._set_working(False)
+                    self.status_var.set(str(payload))
+                    messagebox.showerror(
+                        self.app._t("koreader_error"),
+                        str(payload),
+                        parent=self.window,
+                    )
+        except queue.Empty:
+            pass
+        if self.window.winfo_exists():
+            self.window.after(100, self._poll_events)
+
+    def _close(self) -> None:
+        if not self.working and self.window.winfo_exists():
+            self.window.destroy()
+
+
 class PdfToEpubApp:
     """A friendly, console-free desktop shell around the conversion pipeline."""
 
@@ -133,6 +441,7 @@ class PdfToEpubApp:
         self.root.title("PDF to EPUB OCR")
         self.root.geometry("980x860")
         self.root.minsize(780, 640)
+        self.ui_language = load_language_preference()
         self.theme_name = load_theme_preference()
         self.theme = THEMES[self.theme_name]
         self.window_icon = create_app_icon(self.root)
@@ -153,21 +462,23 @@ class PdfToEpubApp:
         self.pdf_var = tk.StringVar()
         self.output_var = tk.StringVar()
         self.title_var = tk.StringVar()
-        self.author_var = tk.StringVar(value="Bilinmiyor")
-        self.language_var = tk.StringVar(value="tr")
-        self.model_var = tk.StringVar(value=DEFAULT_MODEL_LABEL)
-        self.output_format_var = tk.StringVar(value=DEFAULT_OUTPUT_FORMAT_LABEL)
-        self.model_help_var = tk.StringVar(value=model_description(DEFAULT_MODEL_LABEL))
-        self.status_var = tk.StringVar(value="Bir PDF seçerek başlayın.")
-        self.selected_file_var = tk.StringVar(value="Henüz PDF seçilmedi")
-        self.selected_file_detail_var = tk.StringVar(
-            value="Bilgisayarınızdan dönüştürmek istediğiniz kitabı seçin."
-        )
+        self.author_var = tk.StringVar(value=self._t("unknown_author"))
+        self.language_var = tk.StringVar(value=self.ui_language)
+        initial_model = default_model_label(self.ui_language)
+        self.model_var = tk.StringVar(value=initial_model)
+        self.output_format_var = tk.StringVar(value=default_output_format_label(self.ui_language))
+        self.model_help_var = tk.StringVar(value=model_description(initial_model, self.ui_language))
+        self.status_var = tk.StringVar(value=self._t("initial_status"))
+        self.selected_file_var = tk.StringVar(value=self._t("no_pdf"))
+        self.selected_file_detail_var = tk.StringVar(value=self._t("no_pdf_detail"))
 
         self._configure_styles()
         self._build_ui()
         self.root.after(0, self._apply_windows_title_bar_theme)
         self.root.after(100, self._poll_events)
+
+    def _t(self, key: str, **values: object) -> str:
+        return translate(getattr(self, "ui_language", "en"), key, **values)
 
     def _configure_styles(self) -> None:
         style = ttk.Style(self.root)
@@ -330,7 +641,7 @@ class PdfToEpubApp:
         ).pack(side="left", padx=(9, 0))
         tk.Label(
             titles,
-            text="Yerel OCR ile sade, güvenli ve okunabilir e-kitaplar",
+            text=self._t("tagline"),
             font=("Segoe UI", 10),
             foreground=theme.header_muted,
             background=theme.header,
@@ -338,7 +649,7 @@ class PdfToEpubApp:
 
         privacy = tk.Label(
             brand,
-            text="Yerel ve gizli",
+            text=self._t("privacy"),
             image=self._icon("shield", theme.privacy_fg),
             compound="left",
             font=("Segoe UI", 9, "bold"),
@@ -349,9 +660,28 @@ class PdfToEpubApp:
         )
         privacy.pack(side="right")
 
+        self.language_button = tk.Button(
+            brand,
+            text="English" if self.ui_language == "tr" else "Türkçe",
+            command=self._toggle_language,
+            font=("Segoe UI", 9, "bold"),
+            foreground="white",
+            background="#303A50" if self.theme_name == "dark" else "#2A354B",
+            activeforeground="white",
+            activebackground="#3B4861",
+            disabledforeground=theme.header_muted,
+            relief="flat",
+            borderwidth=0,
+            cursor="hand2",
+            padx=12,
+            pady=7,
+            state="disabled" if self.converting else "normal",
+        )
+        self.language_button.pack(side="right", padx=(0, 10))
+
         self.theme_button = tk.Button(
             brand,
-            text="Açık tema" if self.theme_name == "dark" else "Koyu tema",
+            text=self._t("light_theme") if self.theme_name == "dark" else self._t("dark_theme"),
             image=self._icon("sun" if self.theme_name == "dark" else "moon", "white"),
             compound="left",
             command=self._toggle_theme,
@@ -392,24 +722,21 @@ class PdfToEpubApp:
         copy.pack(side="left", fill="x", expand=True)
         tk.Label(
             copy,
-            text="YEREL OCR DÖNÜŞTÜRÜCÜ",
+            text=self._t("hero_badge"),
             font=("Segoe UI", 8, "bold"),
             foreground=theme.primary,
             background=theme.accent_soft,
         ).pack(anchor="w")
         tk.Label(
             copy,
-            text="PDF kitabınızı akıcı bir EPUB'a dönüştürün.",
+            text=self._t("hero_title"),
             font=("Segoe UI", 17, "bold"),
             foreground=theme.ink,
             background=theme.accent_soft,
         ).pack(anchor="w", pady=(5, 4))
         tk.Label(
             copy,
-            text=(
-                "Taranmış sayfaları cihazınızda okuyup satır sonlarını ve kelime "
-                "bölünmelerini e-kitaba uygun biçimde düzenler."
-            ),
+            text=self._t("hero_body"),
             font=("Segoe UI", 9),
             foreground=theme.muted,
             background=theme.accent_soft,
@@ -419,9 +746,9 @@ class PdfToEpubApp:
 
         features = tk.Frame(hero, background=theme.accent_soft)
         features.pack(side="right", padx=(24, 0))
-        self._feature_pill(features, "shield", "Dosya yüklemez")
-        self._feature_pill(features, "scan", "GPU destekli")
-        self._feature_pill(features, "book", "E-okuyucu uyumlu")
+        self._feature_pill(features, "shield", self._t("feature_private"))
+        self._feature_pill(features, "scan", self._t("feature_gpu"))
+        self._feature_pill(features, "book", self._t("feature_reader"))
 
     def _feature_pill(self, parent: tk.Widget, icon: str, text: str) -> None:
         theme = self.theme
@@ -475,7 +802,7 @@ class PdfToEpubApp:
         text.pack(side="left", fill="x", expand=True)
         tk.Label(
             text,
-            text=f"ADIM {number}",
+            text=self._t("step", number=number),
             font=("Segoe UI", 7, "bold"),
             foreground=theme.primary,
             background=theme.card,
@@ -502,8 +829,8 @@ class PdfToEpubApp:
             card,
             "file",
             "1",
-            "PDF dosyasını seçin",
-            "Dosyanız bilgisayarınızdan çıkmaz; işlem tamamen yerel yapılır.",
+            self._t("file_title"),
+            self._t("file_hint"),
         )
 
         picker = tk.Frame(
@@ -545,7 +872,7 @@ class PdfToEpubApp:
 
         self._button(
             picker,
-            "PDF seç",
+            self._t("choose_pdf"),
             self._choose_pdf,
             primary=True,
             padx=19,
@@ -561,8 +888,8 @@ class PdfToEpubApp:
             card,
             "sliders",
             "2",
-            "Kitap bilgilerini kontrol edin",
-            "Bu bilgiler e-kitap çıktısında ve kitaplığınızda görünür.",
+            self._t("details_title"),
+            self._t("details_hint"),
         )
 
         form = tk.Frame(card, background=theme.card)
@@ -570,15 +897,15 @@ class PdfToEpubApp:
         form.columnconfigure(0, weight=1)
         form.columnconfigure(1, weight=1)
 
-        self._field(form, 0, 0, "Kitap adı", self.title_var)
-        self._field(form, 0, 1, "Yazar", self.author_var)
-        self._field(form, 1, 0, "Dil", self.language_var)
+        self._field(form, 0, 0, self._t("book_title"), self.title_var)
+        self._field(form, 0, 1, self._t("author"), self.author_var)
+        self._field(form, 1, 0, self._t("book_language"), self.language_var)
 
         model_box = tk.Frame(form, background=theme.card)
         model_box.grid(row=1, column=1, sticky="ew", padx=(8, 0), pady=(8, 0))
         tk.Label(
             model_box,
-            text="Sayfa işleme modu",
+            text=self._t("processing_mode"),
             font=("Segoe UI", 9, "bold"),
             foreground=theme.ink,
             background=theme.card,
@@ -586,7 +913,7 @@ class PdfToEpubApp:
         self.model_combo = ttk.Combobox(
             model_box,
             textvariable=self.model_var,
-            values=list(MODEL_LABELS),
+            values=list(model_labels(self.ui_language)),
             state="readonly",
             style="App.TCombobox",
         )
@@ -611,7 +938,7 @@ class PdfToEpubApp:
         format_box.pack(fill="x", pady=(14, 0))
         tk.Label(
             format_box,
-            text="Çıktı biçimi",
+            text=self._t("output_format"),
             image=self._icon("book", theme.primary),
             compound="left",
             font=("Segoe UI", 9, "bold"),
@@ -621,7 +948,7 @@ class PdfToEpubApp:
         self.output_format_combo = ttk.Combobox(
             format_box,
             textvariable=self.output_format_var,
-            values=list(OUTPUT_FORMAT_LABELS),
+            values=list(output_format_labels(self.ui_language)),
             state="readonly",
             style="App.TCombobox",
         )
@@ -633,7 +960,7 @@ class PdfToEpubApp:
         output_box.pack(fill="x", pady=(14, 0))
         tk.Label(
             output_box,
-            text="Çıktı dosyasının kaydedileceği yer",
+            text=self._t("output_location"),
             image=self._icon("save", theme.primary),
             compound="left",
             font=("Segoe UI", 9, "bold"),
@@ -647,7 +974,7 @@ class PdfToEpubApp:
         )
         self._button(
             output_row,
-            "Değiştir",
+            self._t("change"),
             self._choose_output,
             padx=16,
             icon="folder",
@@ -686,8 +1013,8 @@ class PdfToEpubApp:
             card,
             "sparkles",
             "3",
-            "Dönüştürmeyi başlatın",
-            "Süre; sayfa sayısı, tarama kalitesi ve ekran kartına göre değişir.",
+            self._t("convert_title"),
+            self._t("convert_hint"),
         )
 
         action_bar = tk.Frame(card, background=theme.accent_soft, padx=14, pady=12)
@@ -696,14 +1023,14 @@ class PdfToEpubApp:
         action_copy.pack(side="left", fill="x", expand=True)
         tk.Label(
             action_copy,
-            text="Her şey hazır olduğunda tek tıkla başlayın",
+            text=self._t("ready_title"),
             font=("Segoe UI", 10, "bold"),
             foreground=theme.ink,
             background=theme.accent_soft,
         ).pack(anchor="w")
         tk.Label(
             action_copy,
-            text="İlerlemeyi sayfa sayfa burada görebilirsiniz.",
+            text=self._t("ready_hint"),
             font=("Segoe UI", 8),
             foreground=theme.muted,
             background=theme.accent_soft,
@@ -711,7 +1038,7 @@ class PdfToEpubApp:
 
         self.convert_button = self._button(
             action_bar,
-            "Dönüştür",
+            self._t("convert"),
             self._start_conversion,
             primary=True,
             padx=24,
@@ -723,7 +1050,7 @@ class PdfToEpubApp:
 
         self.pause_button = self._button(
             action_bar,
-            "Duraklat",
+            self._t("pause"),
             self._toggle_pause,
             padx=18,
             pady=11,
@@ -744,9 +1071,9 @@ class PdfToEpubApp:
         stage_row.pack(fill="x")
         for index, (icon, stage) in enumerate(
             (
-                ("sparkles", "Model hazırlanıyor"),
-                ("scan", "Sayfalar okunuyor"),
-                ("book", "Çıktı hazırlanıyor"),
+                ("sparkles", self._t("stage_model")),
+                ("scan", self._t("stage_pages")),
+                ("book", self._t("stage_output")),
             )
         ):
             stage_row.columnconfigure(index, weight=1)
@@ -790,16 +1117,24 @@ class PdfToEpubApp:
 
         self.result_actions = tk.Frame(self.status_panel, background=theme.status_bg)
         self.result_actions.pack(side="right")
+        self.koreader_button = self._button(
+            self.result_actions,
+            self._t("send_to_koreader"),
+            self._send_to_koreader,
+            primary=True,
+            compact=True,
+            icon="send",
+        )
         self.open_button = self._button(
             self.result_actions,
-            "Çıktıyı aç",
+            self._t("open_output"),
             self._open_output,
             compact=True,
             icon="external",
         )
         self.folder_button = self._button(
             self.result_actions,
-            "Klasörü aç",
+            self._t("open_folder"),
             self._open_output_folder,
             compact=True,
             icon="folder",
@@ -844,8 +1179,8 @@ class PdfToEpubApp:
 
     def _choose_pdf(self) -> None:
         selected = filedialog.askopenfilename(
-            title="Dönüştürülecek PDF'yi seçin",
-            filetypes=[("PDF dosyaları", "*.pdf")],
+            title=self._t("select_pdf_title"),
+            filetypes=[(self._t("pdf_files"), "*.pdf")],
         )
         if not selected:
             return
@@ -865,15 +1200,15 @@ class PdfToEpubApp:
                 )
             )
         )
-        self._set_status("PDF hazır. Kitap bilgilerini kontrol edip dönüştürmeyi başlatın.")
+        self._set_status(self._t("pdf_ready"))
 
     def _choose_output(self) -> None:
-        output_format = OUTPUT_FORMAT_LABELS[self.output_format_var.get()]
+        output_format = output_format_labels(self.ui_language)[self.output_format_var.get()]
         extension = ".md" if output_format == "markdown" else f".{output_format}"
         descriptions = {
-            "epub": "EPUB dosyaları",
-            "markdown": "Markdown dosyaları",
-            "mobi": "MOBI dosyaları",
+            "epub": self._t("epub_files"),
+            "markdown": self._t("markdown_files"),
+            "mobi": self._t("mobi_files"),
         }
         initial = (
             Path(self.output_var.get())
@@ -881,7 +1216,7 @@ class PdfToEpubApp:
             else Path.home() / f"kitap{extension}"
         )
         selected = filedialog.asksaveasfilename(
-            title="Çıktı dosyasını kaydet",
+            title=self._t("save_output"),
             defaultextension=extension,
             filetypes=[(descriptions[output_format], f"*{extension}")],
             initialdir=initial.parent,
@@ -891,10 +1226,10 @@ class PdfToEpubApp:
             self.output_var.set(selected)
 
     def _model_changed(self, _event: object | None = None) -> None:
-        self.model_help_var.set(model_description(self.model_var.get()))
+        self.model_help_var.set(model_description(self.model_var.get(), self.ui_language))
 
     def _format_changed(self, _event: object | None = None) -> None:
-        output_format = OUTPUT_FORMAT_LABELS[self.output_format_var.get()]
+        output_format = output_format_labels(self.ui_language)[self.output_format_var.get()]
         extension = ".md" if output_format == "markdown" else f".{output_format}"
         current = self.output_var.get().strip()
         if current:
@@ -923,15 +1258,16 @@ class PdfToEpubApp:
                 model_label=self.model_var.get(),
                 overwrite=False,
                 output_format_label=self.output_format_var.get(),
+                ui_language=self.ui_language,
             )
         except ValueError as error:
-            messagebox.showerror("Eksik bilgi", str(error))
+            messagebox.showerror(self._t("missing_info"), str(error))
             return
 
         if options.output_path.exists():
             overwrite = messagebox.askyesno(
-                "Dosya zaten var",
-                "Aynı isimde bir çıktı dosyası var. Üzerine yazılsın mı?",
+                self._t("file_exists_title"),
+                self._t("file_exists_body"),
             )
             if not overwrite:
                 return
@@ -945,12 +1281,13 @@ class PdfToEpubApp:
         pause_controller = ConversionPauseController()
         self.pause_controller = pause_controller
         self.theme_button.configure(state="disabled", cursor="arrow")
-        self.convert_button.configure(state="disabled", text="Dönüştürülüyor…", cursor="arrow")
+        self.language_button.configure(state="disabled", cursor="arrow")
+        self.convert_button.configure(state="disabled", text=self._t("converting"), cursor="arrow")
         self._configure_pause_button(enabled=False, paused=False)
         self.progress.configure(mode="indeterminate", maximum=100, value=0)
         self.progress.start(12)
         self._set_stage(0)
-        self._set_status("Sistem gereksinimleri kontrol ediliyor…")
+        self._set_status(self._t("checking_system"))
         threading.Thread(
             target=self._convert,
             args=(options, pause_controller),
@@ -965,7 +1302,9 @@ class PdfToEpubApp:
         try:
             warning = check_runtime(options.output_format)
             if warning:
-                self.events.put(("warning", friendly_error(RuntimeError(warning))))
+                self.events.put(
+                    ("warning", friendly_error(RuntimeError(warning), self.ui_language))
+                )
             result = convert_pdf(
                 options,
                 progress=lambda progress: self.events.put(("progress", progress)),
@@ -974,7 +1313,7 @@ class PdfToEpubApp:
             self.events.put(("success", result))
         except Exception as error:
             logger.exception("Desktop conversion failed.")
-            self.events.put(("error", friendly_error(error)))
+            self.events.put(("error", friendly_error(error, self.ui_language)))
 
     def _poll_events(self) -> None:
         try:
@@ -983,8 +1322,8 @@ class PdfToEpubApp:
                 if kind == "progress":
                     self._apply_progress(payload)  # type: ignore[arg-type]
                 elif kind == "warning":
-                    self._set_status(f"Uyarı: {payload}", kind="warning")
-                    messagebox.showwarning("Düşük ekran kartı belleği", str(payload))
+                    self._set_status(self._t("warning_prefix", message=payload), kind="warning")
+                    messagebox.showwarning(self._t("low_vram"), str(payload))
                 elif kind == "success":
                     self._finish_success(payload)  # type: ignore[arg-type]
                 elif kind == "error":
@@ -999,7 +1338,7 @@ class PdfToEpubApp:
         self._configure_pause_button(enabled=can_pause, paused=self.paused)
         if self.paused:
             return
-        self._set_status(friendly_progress(progress))
+        self._set_status(friendly_progress(progress, self.ui_language))
         self._set_stage(progress_stage(progress))
         if progress.total_pages is not None and progress.completed_pages is not None:
             self.progress.stop()
@@ -1010,7 +1349,7 @@ class PdfToEpubApp:
             )
 
     def _configure_pause_button(self, *, enabled: bool, paused: bool) -> None:
-        text = "Devam et" if paused else "Duraklat"
+        text = self._t("resume") if paused else self._t("pause")
         icon = "play" if paused else "pause"
         self.pause_button.configure(
             text=text,
@@ -1039,10 +1378,7 @@ class PdfToEpubApp:
         self.paused = True
         self.progress.stop()
         self._configure_pause_button(enabled=True, paused=True)
-        self._set_status(
-            "Dönüştürme duraklatıldı. Devam et düğmesiyle aynı yerden sürdürebilirsiniz.",
-            kind="warning",
-        )
+        self._set_status(self._t("paused_status"), kind="warning")
 
     def _reset_pause_state(self) -> None:
         if self.pause_controller is not None:
@@ -1057,26 +1393,30 @@ class PdfToEpubApp:
         self.converting = False
         self._reset_pause_state()
         self.theme_button.configure(state="normal", cursor="hand2")
-        self.convert_button.configure(state="normal", text="Dönüştür", cursor="hand2")
+        self.language_button.configure(state="normal", cursor="hand2")
+        self.convert_button.configure(state="normal", text=self._t("convert"), cursor="hand2")
         self.last_output = Path(result.output_path)
         self._set_stage(3)
         self._set_status(
-            f"Hazır! {result.output_format.upper()} "
-            f"{result.elapsed_seconds / 60:.1f} dakikada oluşturuldu.",
+            self._t(
+                "success",
+                format=result.output_format.upper(),
+                minutes=result.elapsed_seconds / 60,
+            ),
             kind="success",
         )
-        self.open_button.pack(side="left", padx=(0, 7))
-        self.folder_button.pack(side="left")
+        self._show_result_actions()
 
     def _finish_error(self, message: str) -> None:
         self.progress.stop()
         self.converting = False
         self._reset_pause_state()
         self.theme_button.configure(state="normal", cursor="hand2")
-        self.convert_button.configure(state="normal", text="Tekrar dene", cursor="hand2")
-        self._set_status(f"Dönüştürme tamamlanamadı: {message}", kind="error")
-        log_hint = f"\n\nAyrıntılı günlük: {diagnostic_log_path()}"
-        messagebox.showerror("Dönüştürme hatası", message + log_hint)
+        self.language_button.configure(state="normal", cursor="hand2")
+        self.convert_button.configure(state="normal", text=self._t("retry"), cursor="hand2")
+        self._set_status(self._t("failed_status", message=message), kind="error")
+        log_hint = "\n\n" + self._t("log_hint", path=diagnostic_log_path())
+        messagebox.showerror(self._t("conversion_error"), message + log_hint)
 
     def _set_stage(self, active: int) -> None:
         self.active_stage = active
@@ -1126,6 +1466,53 @@ class PdfToEpubApp:
         self.theme = THEMES[self.theme_name]
         save_theme_preference(self.theme_name)
 
+        self._rebuild_ui()
+        self._apply_windows_title_bar_theme()
+
+    def _toggle_language(self) -> None:
+        """Switch every visible desktop string while preserving form selections."""
+        if self.converting:
+            return
+
+        previous_language = self.ui_language
+        previous_model_labels = model_labels(previous_language)
+        previous_output_labels = output_format_labels(previous_language)
+        model_value = previous_model_labels.get(self.model_var.get(), "large")
+        output_value = previous_output_labels.get(self.output_format_var.get(), "epub")
+        previous_unknown_author = self._t("unknown_author")
+        previous_initial_status = self._t("initial_status")
+        previous_pdf_ready = self._t("pdf_ready")
+        previous_book_language = self.language_var.get().strip().casefold()
+
+        self.ui_language = "en" if previous_language == "tr" else "tr"
+        save_language_preference(self.ui_language)
+
+        new_models = model_labels(self.ui_language)
+        new_outputs = output_format_labels(self.ui_language)
+        self.model_var.set(
+            next(label for label, value in new_models.items() if value == model_value)
+        )
+        self.output_format_var.set(
+            next(label for label, value in new_outputs.items() if value == output_value)
+        )
+        self.model_help_var.set(model_description(self.model_var.get(), self.ui_language))
+        if self.author_var.get().strip() == previous_unknown_author:
+            self.author_var.set(self._t("unknown_author"))
+        if previous_book_language == previous_language:
+            self.language_var.set(self.ui_language)
+        if not self.pdf_var.get().strip():
+            self.selected_file_var.set(self._t("no_pdf"))
+            self.selected_file_detail_var.set(self._t("no_pdf_detail"))
+        if self.status_var.get() == previous_initial_status:
+            self.status_var.set(self._t("initial_status"))
+        elif self.status_var.get() == previous_pdf_ready:
+            self.status_var.set(self._t("pdf_ready"))
+
+        self._rebuild_ui()
+
+    def _rebuild_ui(self) -> None:
+        """Recreate themed/localized widgets without discarding user input."""
+
         status_message = self.status_var.get()
         status_kind = self.status_kind
         active_stage = self.active_stage
@@ -1136,13 +1523,11 @@ class PdfToEpubApp:
         self.root.configure(background=self.theme.background)
         self._configure_styles()
         self._build_ui()
-        self._apply_windows_title_bar_theme()
         self._set_stage(active_stage)
         self._set_status(status_message, kind=status_kind)
         if self.last_output is not None:
             self.progress.configure(mode="determinate", maximum=100, value=100)
-            self.open_button.pack(side="left", padx=(0, 7))
-            self.folder_button.pack(side="left")
+            self._show_result_actions()
 
     def _apply_windows_title_bar_theme(self) -> None:
         if sys.platform != "win32":
@@ -1166,8 +1551,22 @@ class PdfToEpubApp:
             pass
 
     def _hide_result_actions(self) -> None:
+        self.koreader_button.pack_forget()
         self.open_button.pack_forget()
         self.folder_button.pack_forget()
+
+    def _show_result_actions(self) -> None:
+        if (
+            self.last_output is not None
+            and self.last_output.suffix.casefold() in SUPPORTED_EXTENSIONS
+        ):
+            self.koreader_button.pack(side="left", padx=(0, 7))
+        self.open_button.pack(side="left", padx=(0, 7))
+        self.folder_button.pack(side="left")
+
+    def _send_to_koreader(self) -> None:
+        if self.last_output is not None and self.last_output.is_file():
+            KOReaderSendDialog(self, self.last_output)
 
     def _open_output(self) -> None:
         if self.last_output is not None:
@@ -1212,3 +1611,4 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+

@@ -7,6 +7,27 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Add a persistent Turkish/English desktop language switcher covering the full interface,
+  file dialogs, model/output labels, progress updates, and actionable error messages.
+- Add a real English Windows Setup.exe with per-user installation, Start menu integration,
+  Windows uninstall registration, and a modern wizard.
+- Add an English Maintenance Center for runtime repair, SHA-256-verified GitHub Release updates,
+  and uninstallation while preserving downloaded OCR models by default.
+- Add direct **Send to KOReader** support after EPUB/MOBI conversion using the native LocalSend
+  v2.2 protocol: same-network device discovery, manual IP fallback, optional PINs, transfer
+  progress, mutual-TLS client identity, and receiver certificate fingerprint pinning.
+
+### Changed
+
+- Make English the default desktop language for fresh installations while retaining the
+  persistent Turkish switch.
+- Keep the easy-start ZIP and batch launchers as legacy troubleshooting tools instead of the
+  primary Windows installation path.
+- Keep KOReader transfers local to the LAN and reject devices whose HTTPS certificate no longer
+  matches the identity announced during discovery.
+
 ## [0.9.1] - 2026-08-20
 
 ### Added
@@ -274,3 +295,4 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [0.1.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/quby1845/pdf-to-epub/releases/tag/v0.1.0
+

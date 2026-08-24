@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pdf-to-epub-ocr"
-version = "0.9.1"
+version = "0.10.0"
 description = "Convert scanned PDF books into EPUB, Markdown, or MOBI with local OCR."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
@@ -26,6 +26,7 @@ classifiers = [
   "Topic :: Utilities",
 ]
 dependencies = [
+  "cryptography>=45,<47",
   "huggingface-hub>=0.36,<0.37",
   "pdf-craft>=1.0.14,<2",
   "platformdirs>=4.3,<5",
@@ -73,6 +74,7 @@ include = [
   "/PDF-TO-EPUB.bat",
   "/launch.ps1",
   "/setup.ps1",
+  "/installer",
   "/start.bat",
   "/pyproject.toml",
 ]
@@ -92,3 +94,4 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+

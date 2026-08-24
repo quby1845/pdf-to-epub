@@ -44,7 +44,16 @@ def test_windows_bundle_contains_cmd_compatible_launchers(tmp_path: Path) -> Non
 
 
 @pytest.mark.parametrize(
-    "filename", ["KURULUM.bat", "PDF-TO-EPUB.bat", "start.bat", "setup.ps1", "launch.ps1"]
+    "filename",
+    [
+        "KURULUM.bat",
+        "PDF-TO-EPUB.bat",
+        "start.bat",
+        "setup.ps1",
+        "launch.ps1",
+        "installer/maintenance.ps1",
+        "installer/uninstall-cleanup.ps1",
+    ],
 )
 def test_repository_windows_launchers_are_ascii(filename: str) -> None:
     Path(filename).read_bytes().decode("ascii")
@@ -79,4 +88,38 @@ def test_windows_installer_keeps_errors_visible_and_writes_a_log() -> None:
     assert '2>"%INSTALL_ERROR_LOG%"' in launcher
     assert 'notepad.exe "%INSTALL_ERROR_LOG%"' in launcher
     assert "PDF_TO_EPUB_INSTALLER_FAILURE_OK" in launcher
-    assert 'choice /c K /n /m "Pencereyi kapatmak icin K tusuna basin: "' in launcher
+    assert 'choice /c C /n /m "Press C to close this window: "' in launcher
+
+
+def test_real_windows_installer_has_stable_upgrade_and_maintenance_integration() -> None:
+    installer = Path("installer/pdf-to-epub.iss").read_text(encoding="utf-8")
+    assert "AppId={#AppIdValue}" in installer
+    assert "PrivilegesRequired=lowest" in installer
+    assert "WizardStyle=modern" in installer
+    assert "SetupLogging=yes" in installer
+    assert "AppModifyPath=" in installer
+    assert "maintenance.ps1" in installer
+    assert "uninstall-cleanup.ps1" in installer
+    assert "-Operation Install -SkipShortcuts -LogPath" in installer
+    assert "ResultCode <> 0" in installer
+    assert "windows-setup" in installer
+
+
+def test_maintenance_updates_require_sha256_verification() -> None:
+    maintenance = Path("installer/maintenance.ps1").read_text(encoding="ascii")
+    assert "Repair" in maintenance
+    assert "Check for updates" in maintenance
+    assert "Uninstall" in maintenance
+    assert "Get-FileHash" in maintenance
+    assert "SHA256" in maintenance
+    assert "browser_download_url" in maintenance
+    assert "Update verification failed" in maintenance
+
+
+def test_release_workflow_builds_and_publishes_setup_exe() -> None:
+    workflow = Path(".github/workflows/release.yml").read_text(encoding="utf-8")
+    assert "windows-installer:" in workflow
+    assert "Inno Setup 6\\ISCC.exe" in workflow
+    assert "windows-setup.exe.sha256" in workflow
+    assert "needs: [build, windows-bundle, windows-installer]" in workflow
+

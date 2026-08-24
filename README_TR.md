@@ -23,21 +23,22 @@ rahat çalışır. Arayüzdeki sayfa işleme modu 6,5 GB model indirmesinin ve a
 boyutunu değil, sayfaların işlenme çözünürlüğünü, kırpma yöntemini ve ek çalışma belleğini
 değiştirir.
 
-## Üç adımda kurulum
+## Windows Setup ile üç adımda kurulum
 
 1. [Son sürüm sayfasını](https://github.com/quby1845/pdf-to-epub/releases/latest) açın ve adı
-   **`windows-easy-start.zip`** ile biten dosyayı indirin.
-2. ZIP dosyasına sağ tıklayıp **Tümünü ayıkla** seçeneğini kullanın. Programı ZIP'in içinden
-   çalıştırmayın.
-3. Ayıklanan klasörde **`KURULUM.bat`** dosyasına çift tıklayın.
+   **`windows-setup.exe`** ile biten dosyayı indirin.
+2. Setup dosyasını açıp İngilizce kurulum sihirbazındaki adımları izleyin.
+3. Kurulum bitince masaüstünden veya Başlat menüsünden **PDF to EPUB OCR** uygulamasını açın.
 
 Windows koruma uyarısı gösterirse yalnızca bu GitHub deposundan indirdiğinizi doğruladıktan sonra
 **Daha fazla bilgi → Yine de çalıştır** yolunu kullanın. Kurulum; Python, CUDA destekli PyTorch,
 Pandoc, Poppler, MOBI için Calibre ve programın bağımlılıklarını hazırlar. İnternet hızına göre
 10–30 dakika
-sürebilir; masaüstüne ve Başlat menüsüne **PDF to EPUB OCR** kısayolu ekler. Python ortamı ZIP'in
-uzun klasör yoluna değil `%LOCALAPPDATA%\PDF-to-EPUB-OCR\venv` konumuna kurulur. Kurulum yarıda
-kalırsa `KURULUM.bat` bozuk ortamı gerçek içe aktarma ve CUDA testiyle algılayıp yeniden oluşturur.
+sürebilir; masaüstüne ve Başlat menüsüne **PDF to EPUB OCR** kısayolu ekler. Python ortamı
+`%LOCALAPPDATA%\PDF-to-EPUB-OCR\venv` konumuna kurulur. Kurulum yarıda kalırsa Başlat menüsündeki
+**PDF to EPUB OCR Maintenance** aracından **Repair** seçeneğini kullanın. Araç bozuk ortamı gerçek
+içe aktarma ve GPU testiyle algılayıp yeniden oluşturur. Aynı merkezden SHA-256 doğrulamalı
+güncelleme kontrolü ve kaldırma işlemi de yapılabilir.
 RTX 50 serisinde `sm_120` destekli CUDA 13 paketi otomatik seçilir; çalışan RTX 30/40 kurulumu
 gereksiz yere değiştirilmez.
 
@@ -123,6 +124,11 @@ Sağ üstteki **Koyu tema** düğmesiyle görünümü değiştirebilirsiniz. Se�
 bir sonraki açılışta aynı temayı kullanır. Dönüşüm sürerken yanlışlıkla arayüzü yenilememek için
 tema düğmesi işlem bitene kadar geçici olarak kilitlenir.
 
+Üst bölümdeki **English / Türkçe** düğmesi arayüzün tamamını anında değiştirir. Dosya pencereleri,
+model açıklamaları, ilerleme bilgileri ve hata mesajları da seçilen dile çevrilir. Dil seçimi
+hatırlanır ve uygulama bir sonraki açılışta aynı dili kullanır. Yeni kurulumlar küresel kullanım
+için İngilizce arayüzle başlar; Türkçe düğmeyle anında seçilebilir.
+
 Modern arayüzde her adım ve işlem için açık/koyu temaya uyumlu simgeler bulunur. PDF seçildiğinde
 dosya adı, boyutu ve bulunduğu klasör tek bakışta gösterilir. Bu simgeler programla birlikte gelir;
 arayüz açılırken internetten hiçbir görsel indirilmez.
@@ -139,6 +145,24 @@ noktasında beklemeye geçer; tamamlanan sayfalar silinmez ve model ekran kartı
 **Devam et** düğmesine basınca aynı dönüşüm kaldığı yerden sürer. Duraklatılan süre, tahmini kalan
 süre hesabına eklenmez. Bu özellik özellikle uzun kitaplarda bilgisayara soğuma fırsatı vermek
 içindir; duraklatma sırasında VRAM boşaltılmaz.
+
+## Oluşan kitabı doğrudan KOReader'a gönderme
+
+EPUB veya MOBI dönüşümü tamamlandığında sonuç satırında **KOReader'a gönder** düğmesi görünür.
+Aktarım açık LocalSend 2.2 protokolüyle aynı yerel ağ içinde doğrudan bilgisayardan e-okuyucuya
+yapılır; kitap bir bulut sunucusuna yüklenmez.
+
+1. E-okuyucunuza [KOReader LocalSend eklentisini](https://github.com/kaikozlov/localsend.koplugin)
+   kurup KOReader'ı yeniden başlatın.
+2. KOReader'da **Menü → Ağ → LocalSend** bölümünü açın, kayıt klasörünü seçin ve sunucuyu
+   başlatın. Bilgisayar ile e-okuyucu aynı Wi-Fi ağında olmalıdır.
+3. Bilgisayarda **KOReader'a gönder** düğmesine basın, bulunan cihazı seçin ve KOReader ekranındaki
+   isteği onaylayın. KOReader PIN istiyorsa isteğe bağlı PIN alanına girin.
+
+Misafir ağı, VPN veya modem ayarı otomatik keşfi engellerse KOReader cihazının IP adresini
+(`192.168.1.50` gibi) elle girebilirsiniz. EPUB, MOBI ve PDF gönderilebilir. HTTPS aktarımında
+uygulama kalıcı bir yerel istemci sertifikası kullanır ve kitap verisini göndermeden önce
+KOReader'ın keşif sırasında bildirdiği sertifika parmak izini doğrular.
 
 Program PDF'de satır sonunda bölünmüş `bit-miş` gibi Türkçe kelimeleri EPUB oluşturulurken
 otomatik olarak birleştirir. Gerçek tireli `e-posta` benzeri sözcükleri korumaya çalışır; OCR
@@ -166,16 +190,16 @@ GPU programları, PyTorch ve sürücü sürümü gerçek tüketimi değiştirebi
 
 | Sorun | Çözüm |
 | --- | --- |
-| Kurulum yarıda kaldı | `KURULUM.bat` dosyasını yeniden çalıştırın |
-| `[WinError 206]` | Son sürümde ortam kısa kullanıcı yoluna kurulur; `KURULUM.bat` dosyasını yeniden çalıştırın |
+| Kurulum yarıda kaldı | Maintenance Center içinden **Repair** seçin |
+| `[WinError 206]` | Ortam kısa kullanıcı yoluna kurulur; Maintenance Center içinden **Repair** seçin |
 | `[WinError 1314]` | Son sürüm model cache'inde symlink yerine normal kopya kullanır; yönetici/Developer Mode gerekmez |
-| RTX 50 / `no kernel image` | `KURULUM.bat` dosyasını yeniden çalıştırın; kurulum CUDA 13 + `sm_120` paketini seçer |
+| RTX 50 / `no kernel image` | **Repair** seçin; kurulum CUDA 13 + `sm_120` paketini seçer |
 | Desteklenmeyen AMD ekran kartı | Kartınızı AMD'nin Windows ROCm 7.2.1 uyumluluk listesinde kontrol edin |
 | AMD ROCm kurulumu başarısız | Windows 11, Python 3.12 ve Radeon sürücüsü 26.2.2 kullandığınızı doğrulayın |
 | 6 GB VRAM | Mevcut 6,5 GB ana model sığmaz; Tiny/Small bunu küçültmez |
 | 8 GB ve üzeri bellek hatası | Diğer GPU uygulamalarını kapatın; sayfa yükü için `base` veya `small` deneyin |
 | Pandoc/PyTorch bulunamadı | Kurulumu yeniden çalıştırın ve bilgisayarı yeniden başlatın |
-| MOBI için Calibre bulunamadı | `KURULUM.bat` dosyasını yeniden çalıştırın |
+| MOBI için Calibre bulunamadı | Maintenance Center içinden **Repair** seçin |
 | `Failed to extract page 1 layout at stage 1` | Son sürümü kurun; gösterilen ayrıntılı CUDA hatasıyla birlikte ekran kartı modeli ve VRAM miktarını bildirin |
 | Çıktı zaten var | Farklı kayıt adı seçin veya üzerine yazmayı onaylayın |
 | OCR hataları var | Daha temiz tarama veya daha güçlü model deneyin |
@@ -193,3 +217,4 @@ kopya olarak hazırlanır; `.ipynb_checkpoints` ve `README-checkpoint.md` gibi m
 dosyalar dönüşüm ön koşulu değildir. Bu indirme belgenizin içeriğini göndermez.
 Kullanılan açık kaynak bileşenler ve ayrıntılı teknik bilgiler için
 [ana README dosyasına](README.md) bakabilirsiniz.
+

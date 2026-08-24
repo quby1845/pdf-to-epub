@@ -468,7 +468,8 @@ def check_runtime(output_format: OutputFormat = "epub") -> str | None:
         raise ConversionError("Pandoc was not found on PATH. Install Pandoc before converting.")
     if output_format == "mobi" and find_ebook_convert() is None:
         raise ConversionError(
-            "Calibre ebook-convert was not found. Run KURULUM.bat again to enable MOBI output."
+            "Calibre ebook-convert was not found. Use Maintenance Center > Repair to enable "
+            "MOBI output."
         )
     try:
         import torch
@@ -524,7 +525,7 @@ def check_runtime(output_format: OutputFormat = "epub") -> str | None:
     if backend == "cuda" and capability >= (12, 0) and "sm_120" not in arch_list:
         raise ConversionError(
             "This RTX 50 / Blackwell GPU needs a PyTorch build with sm_120 support. "
-            "On Windows, run KURULUM.bat again to install the CUDA 13 build. "
+            "On Windows, use Maintenance Center > Repair to install the CUDA 13 build. "
             "Docker and manual installs must select the CUDA 13 PyTorch index."
         )
 
@@ -536,9 +537,10 @@ def check_runtime(output_format: OutputFormat = "epub") -> str | None:
         detail = str(error)
         if "no kernel image" in detail.lower():
             raise ConversionError(
-                "The installed PyTorch build cannot run kernels on this GPU. On Windows, run "
-                "KURULUM.bat again so the matching NVIDIA CUDA or AMD ROCm build can be "
-                "installed. Docker and manual installs must select a compatible PyTorch build."
+                "The installed PyTorch build cannot run kernels on this GPU. On Windows, open "
+                "Maintenance Center and select Repair so the matching NVIDIA CUDA or AMD ROCm "
+                "build can be installed. Docker and manual installs must select a compatible "
+                "PyTorch build."
             ) from error
         raise ConversionError(f"GPU acceleration could not run a startup test: {detail}") from error
 
@@ -663,7 +665,8 @@ def create_mobi(
     ebook_convert = find_ebook_convert()
     if ebook_convert is None:
         raise ConversionError(
-            "Calibre ebook-convert was not found. Run KURULUM.bat again to enable MOBI output."
+            "Calibre ebook-convert was not found. Use Maintenance Center > Repair to enable "
+            "MOBI output."
         )
     intermediate_epub = markdown_path.with_name("mobi-source.epub")
     create_epub(markdown_path, intermediate_epub, metadata, css_path, cover_path)
@@ -835,3 +838,4 @@ def convert_pdf(
     finally:
         if not options.keep_intermediates:
             shutil.rmtree(work_dir, ignore_errors=True)
+

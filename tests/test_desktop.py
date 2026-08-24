@@ -6,18 +6,26 @@ import pytest
 
 from pdf_to_epub.converter import ConversionProgress
 from pdf_to_epub.desktop import (
+    DEFAULT_ENGLISH_MODEL_LABEL,
+    DEFAULT_ENGLISH_OUTPUT_FORMAT_LABEL,
     DEFAULT_MODEL_LABEL,
     DEFAULT_OUTPUT_FORMAT_LABEL,
     MODEL_LABELS,
     OUTPUT_FORMAT_LABELS,
     build_conversion_options,
     default_epub_path,
+    default_model_label,
+    default_output_format_label,
     default_output_path,
     friendly_error,
     friendly_progress,
+    load_language_preference,
     load_theme_preference,
     model_description,
+    model_labels,
+    output_format_labels,
     progress_stage,
+    save_language_preference,
     save_theme_preference,
 )
 
@@ -188,3 +196,50 @@ def test_desktop_theme_preference_round_trip_and_safe_fallback(tmp_path: Path) -
 
     settings.write_text("unsupported", encoding="utf-8")
     assert load_theme_preference(settings) == "light"
+
+
+def test_desktop_language_preference_round_trip_and_safe_fallback(tmp_path: Path) -> None:
+    settings = tmp_path / "settings" / "language.txt"
+    assert load_language_preference(settings) == "en"
+
+    save_language_preference("en", settings)
+    assert settings.read_text(encoding="utf-8") == "en\n"
+    assert load_language_preference(settings) == "en"
+
+    settings.write_text("unsupported", encoding="utf-8")
+    assert load_language_preference(settings) == "en"
+
+
+def test_desktop_english_labels_and_messages(tmp_path: Path) -> None:
+    pdf = tmp_path / "book.pdf"
+    pdf.write_bytes(b"%PDF")
+    options = build_conversion_options(
+        pdf_path=pdf,
+        epub_path=tmp_path / "book.epub",
+        title="Book",
+        author="",
+        language="en",
+        model_label=DEFAULT_ENGLISH_MODEL_LABEL,
+        overwrite=False,
+        output_format_label=DEFAULT_ENGLISH_OUTPUT_FORMAT_LABEL,
+        ui_language="en",
+    )
+
+    assert options.ocr_size == "large"
+    assert options.metadata.author == "Unknown"
+    assert default_model_label("en") == DEFAULT_ENGLISH_MODEL_LABEL
+    assert default_model_label("tr") == DEFAULT_MODEL_LABEL
+    assert default_output_format_label("en") == DEFAULT_ENGLISH_OUTPUT_FORMAT_LABEL
+    assert model_labels("en")[DEFAULT_ENGLISH_MODEL_LABEL] == "large"
+    assert output_format_labels("en")[DEFAULT_ENGLISH_OUTPUT_FORMAT_LABEL] == "epub"
+    assert "recommended" in model_description(DEFAULT_ENGLISH_MODEL_LABEL, "en").casefold()
+    assert "Checking OCR model" in friendly_progress("Checking and downloading OCR models", "en")
+    assert "Maintenance Center" in friendly_error(
+        RuntimeError("Pandoc was not found on PATH"), "en"
+    )
+
+    progress = ConversionProgress("Completed PDF page", "ocr", 40, 100, 40, 4500)
+    assert friendly_progress(progress, "en") == (
+        "Completed 40 / 100 pages (40%) — about 1 hr 15 min remaining"
+    )
+

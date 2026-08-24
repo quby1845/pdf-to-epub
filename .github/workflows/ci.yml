@@ -78,6 +78,17 @@ jobs:
           if ($logicOutput -ne "PDF_TO_EPUB_INSTALLER_LOGIC_OK") { throw "Installer logic self-test failed: $logicOutput" }
           $launchOutput = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File .\launch.ps1 -SelfTest
           if ($launchOutput -ne "PDF_TO_EPUB_LAUNCH_SCRIPT_OK") { throw "launch.ps1 self-test failed: $launchOutput" }
+          $maintenanceOutput = & "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe" -NoProfile -ExecutionPolicy Bypass -File .\installer\maintenance.ps1 -SelfTest
+          if ($maintenanceOutput -ne "PDF_TO_EPUB_MAINTENANCE_OK") { throw "maintenance.ps1 self-test failed: $maintenanceOutput" }
+      - name: Compile the Windows installer
+        shell: powershell
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path -LiteralPath $iscc)) { throw "Inno Setup compiler was not found." }
+          New-Item -ItemType Directory -Path build\installer -Force | Out-Null
+          & $iscc "/DAppVersion=0.10.0" "/DSourceRoot=$PWD" "/DOutputDirectory=$PWD\build\installer" .\installer\pdf-to-epub.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
+          if (-not (Test-Path -LiteralPath .\build\installer\pdf-to-epub-ocr-v0.10.0-windows-setup.exe)) { throw "Setup.exe was not created." }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -94,3 +105,4 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker compose config --quiet
       - run: docker build --target syntax-check .
+

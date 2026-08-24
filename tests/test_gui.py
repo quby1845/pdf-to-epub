@@ -21,6 +21,17 @@ class FakeWidget:
         self.calls.append(("stop", None))
 
 
+class FakeVar:
+    def __init__(self, value: str) -> None:
+        self.value = value
+
+    def get(self) -> str:
+        return self.value
+
+    def set(self, value: str) -> None:
+        self.value = value
+
+
 def test_scrolling_over_selector_scrolls_page_and_stops_combobox_binding() -> None:
     scrolls: list[tuple[int, str]] = []
     canvas = SimpleNamespace(
@@ -40,6 +51,7 @@ def test_scrolling_over_selector_scrolls_page_and_stops_combobox_binding() -> No
 def test_pause_button_pauses_and_resumes_the_same_conversion() -> None:
     statuses: list[tuple[str, str]] = []
     app = object.__new__(PdfToEpubApp)
+    app.ui_language = "tr"
     app.converting = True
     app.paused = False
     app.pause_controller = ConversionPauseController()
@@ -64,3 +76,35 @@ def test_pause_button_pauses_and_resumes_the_same_conversion() -> None:
     assert app.pause_controller.is_paused is False
     assert app.pause_button.config["text"] == "Duraklat"
     assert app.progress.calls[-1] == ("start", 12)
+
+
+def test_language_toggle_localizes_defaults_and_preserves_choices(monkeypatch) -> None:
+    app = object.__new__(PdfToEpubApp)
+    app.converting = False
+    app.ui_language = "tr"
+    app.model_var = FakeVar("Small — 640 px / tahmini ≈7,5 GB VRAM")
+    app.output_format_var = FakeVar("Markdown — düzenlenebilir metin (.md)")
+    app.model_help_var = FakeVar("")
+    app.author_var = FakeVar("Bilinmiyor")
+    app.language_var = FakeVar("tr")
+    app.pdf_var = FakeVar("")
+    app.selected_file_var = FakeVar("Henüz PDF seçilmedi")
+    app.selected_file_detail_var = FakeVar(
+        "Bilgisayarınızdan dönüştürmek istediğiniz kitabı seçin."
+    )
+    app.status_var = FakeVar("Bir PDF seçerek başlayın.")
+    rebuilt: list[bool] = []
+    app._rebuild_ui = lambda: rebuilt.append(True)
+    monkeypatch.setattr("pdf_to_epub.gui.save_language_preference", lambda _language: None)
+
+    app._toggle_language()
+
+    assert app.ui_language == "en"
+    assert app.model_var.get() == "Small — 640 px / estimated ≈7.5 GB VRAM"
+    assert app.output_format_var.get() == "Markdown — editable text (.md)"
+    assert app.author_var.get() == "Unknown"
+    assert app.language_var.get() == "en"
+    assert app.selected_file_var.get() == "No PDF selected yet"
+    assert app.status_var.get() == "Start by choosing a PDF."
+    assert rebuilt == [True]
+
