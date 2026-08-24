@@ -209,8 +209,8 @@ describe("Self-Update", function()
     -- =======================================================================
     describe("checkForUpdates", function()
         local up_to_date_cases = {
-            { "v1.1.1", "same version" },
-            { "v1.0.0", "older version" },
+            { "v0.12.0", "same version" },
+            { "v0.11.9", "older version" },
         }
 
         for _, tc in ipairs(up_to_date_cases) do
@@ -431,7 +431,7 @@ describe("Self-Update", function()
             local status_file = "/tmp/koreader-test-data/cache/localsend/update_check.status"
             file_contents[status_file] = ""
             file_contents["/tmp/koreader-test-data/cache/localsend/update_check.json"] = [[
-                {"tag_name":"v1.4.0","body":"Current release","assets":[
+                {"tag_name":"v0.12.0","body":"Current release","assets":[
                     {"name":"pdf-to-epub-receiver-koplugin-armv7.zip","browser_download_url":"https://example.com/armv7.zip"}
                 ]}
             ]]
