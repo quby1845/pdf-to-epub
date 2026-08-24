@@ -344,6 +344,15 @@ def test_check_runtime_handles_missing_tools_and_cpu(monkeypatch: pytest.MonkeyP
         check_runtime()
 
 
+def test_check_runtime_explains_upstream_macos_limit(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("pdf_to_epub.converter.shutil.which", lambda _name: "pandoc")
+    monkeypatch.setattr("pdf_to_epub.converter.desktop_platform", lambda: "macos")
+    fake_torch = types.SimpleNamespace(cuda=types.SimpleNamespace(is_available=lambda: False))
+    monkeypatch.setitem(sys.modules, "torch", fake_torch)
+    with pytest.raises(ConversionError, match=r"Apple Silicon/Metal \(MPS\)"):
+        check_runtime()
+
+
 def test_check_runtime_only_requires_format_specific_tools(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

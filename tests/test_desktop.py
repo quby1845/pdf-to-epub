@@ -140,14 +140,18 @@ def test_build_conversion_options_rejects_bad_form_values(
 def test_desktop_messages_are_friendly_and_future_safe() -> None:
     assert "modeli" in friendly_progress("Checking and downloading OCR models")
     assert friendly_progress("Future stage") == "Future stage"
-    assert "KURULUM.bat" in friendly_error(RuntimeError("Pandoc was not found on PATH"))
-    assert "AMD ROCm" in friendly_error(RuntimeError("CUDA/ROCm is not available"))
+    assert "KURULUM.bat" in friendly_error(
+        RuntimeError("Pandoc was not found on PATH"), platform="win32"
+    )
+    assert "AMD ROCm" in friendly_error(
+        RuntimeError("CUDA/ROCm is not available"), platform="win32"
+    )
     assert "base" in friendly_error(RuntimeError("CUDA out of memory"))
     assert "6,5 GB" in friendly_error(
         RuntimeError("The current model does not fit reliably in a 6 GB GPU")
     )
     assert "uygulamaları kapatıp" in friendly_error(RuntimeError("There is not enough free VRAM"))
-    assert "KURULUM.bat" in friendly_error(RuntimeError("missing sm_120 support"))
+    assert "KURULUM.bat" in friendly_error(RuntimeError("missing sm_120 support"), platform="win32")
     assert "VRAM" in friendly_error(RuntimeError("Failed to extract page 1 layout at stage 1"))
     assert friendly_error(RuntimeError("different failure")) == "different failure"
 
@@ -235,10 +239,18 @@ def test_desktop_english_labels_and_messages(tmp_path: Path) -> None:
     assert "recommended" in model_description(DEFAULT_ENGLISH_MODEL_LABEL, "en").casefold()
     assert "Checking OCR model" in friendly_progress("Checking and downloading OCR models", "en")
     assert "Maintenance Center" in friendly_error(
-        RuntimeError("Pandoc was not found on PATH"), "en"
+        RuntimeError("Pandoc was not found on PATH"), "en", platform="win32"
     )
 
     progress = ConversionProgress("Completed PDF page", "ocr", 40, 100, 40, 4500)
     assert friendly_progress(progress, "en") == (
         "Completed 40 / 100 pages (40%) — about 1 hr 15 min remaining"
     )
+
+
+def test_desktop_errors_use_native_linux_and_macos_guidance() -> None:
+    linux = friendly_error(RuntimeError("PyTorch is not installed"), "en", platform="linux")
+    assert "./setup.sh --repair" in linux
+
+    macos = friendly_error(RuntimeError("CUDA/ROCm is not available"), "en", platform="darwin")
+    assert "Apple Silicon/Metal (MPS)" in macos

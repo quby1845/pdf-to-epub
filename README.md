@@ -17,7 +17,9 @@ on your machine; no document text is sent to an external API.
 
 **Türkçe kullanım:** [Türkçe kolay kurulum ve kullanım rehberi](README_TR.md)
 
-## Windows Setup (recommended, no command line)
+## Desktop setup
+
+### Windows (recommended, no command line)
 
 1. Download the **`windows-setup.exe`** file from the
    [latest release](https://github.com/quby1845/pdf-to-epub/releases/latest).
@@ -36,6 +38,41 @@ beta path requires Windows 11, Python 3.12, and one of AMD's officially listed R
 
 The legacy easy-start ZIP and `KURULUM.bat` remain available as a troubleshooting fallback, but
 new users should use Setup.exe.
+
+### Linux
+
+Download the `linux.zip` asset from the latest release, extract it, then run:
+
+```bash
+chmod +x setup.sh launch.sh
+./setup.sh
+```
+
+The installer uses a private environment under `~/.local/share/pdf-to-epub-ocr`, installs a
+launcher in `~/.local/bin`, and adds **PDF to EPUB OCR** to the desktop application menu. It can
+detect an NVIDIA GPU and choose CUDA 12.6 or CUDA 13 for RTX 50 cards. On supported AMD systems,
+the automated ROCm path uses AMD's official ROCm 7.2.1 wheels and currently requires x86-64
+Ubuntu 24.04 with Python 3.12 and a correctly installed Radeon/ROCm driver.
+
+Useful maintenance commands:
+
+```bash
+./setup.sh --check
+./setup.sh --repair
+./setup.sh --uninstall
+```
+
+### macOS
+
+Download the `macos.zip` asset, extract it, and run the same `chmod` and `./setup.sh` commands.
+Setup installs the GUI as `~/Applications/PDF to EPUB OCR.app` and uses Homebrew for Python, Tk,
+Pandoc, Poppler, and optional Calibre support.
+
+> [!WARNING]
+> The desktop interface installs and opens on macOS, but local OCR conversion is not available
+> on Apple Silicon/Metal yet. The upstream pdf-craft/DeepSeek OCR stack currently requires a CUDA
+> environment; its CPU package is intended for development and Apple MPS is not supported. The
+> app reports this limitation directly instead of starting a conversion that cannot finish.
 
 ## Why this project
 
@@ -57,7 +94,7 @@ settings. PDF to EPUB OCR provides a reproducible command-line workflow for scan
 
 | Component | Supported / recommended |
 | --- | --- |
-| Operating system | Windows 10/11 for NVIDIA; Windows 11 for AMD ROCm; Linux is community-supported |
+| Operating system | Windows 10/11; Linux (NVIDIA, or supported AMD ROCm); macOS GUI only until upstream MPS support |
 | Python | 3.11, 3.12, or 3.13 |
 | GPU | Supported NVIDIA CUDA or AMD ROCm GPU; 8 GB is the practical model baseline |
 | Memory | 16 GB RAM recommended |
@@ -78,6 +115,12 @@ RX 9070 XT, AI PRO R9700, RX 9060 XT, RX 7900 XTX, PRO W7900 variants, and RX 77
 Windows 11, Python 3.12, and graphics driver 26.2.2. See AMD's
 [Windows compatibility matrix](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/windows/windows_compatibility.html)
 and [PyTorch installation guide](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/windows/install-pytorch.html).
+
+Linux AMD support uses AMD's published Radeon ROCm 7.2.1 wheels on the supported Ubuntu/Python
+combination. Check AMD's
+[Linux compatibility matrix](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/native_linux/native_linux_compatibility.html)
+before installation. Other Linux distributions can use NVIDIA CUDA through `setup.sh`; manual
+ROCm setups remain possible but are not claimed as automatically supported.
 
 ## Installation
 
@@ -101,6 +144,22 @@ kernel probe, selects CUDA 13 with `sm_120` support for RTX 50 / Blackwell cards
 RTX 30/40 installs, installs the package, and checks Pandoc, Poppler, and Calibre. AMD installs
 are pinned to Python 3.12 and are rejected early when the Radeon model is outside AMD's official
 Windows support matrix.
+
+### Linux and macOS setup script
+
+When installing from a repository checkout instead of a release ZIP:
+
+```bash
+git clone https://github.com/quby1845/pdf-to-epub.git
+cd pdf-to-epub
+chmod +x setup.sh launch.sh
+./setup.sh
+```
+
+Use `./launch.sh` if your desktop menu has not refreshed. `setup.sh` detects broken managed
+environments using real Python imports and validates Linux GPU installations with an actual
+tensor/kernel operation. `--skip-system-packages` is available when Pandoc, Poppler, Tk, and
+Calibre are already managed by the operating system administrator.
 
 ### Docker setup (optional CLI workflow)
 
@@ -172,7 +231,8 @@ metadata was prepared. Installation from PyPI will be documented after the first
 
 ## Usage
 
-For most Windows users, open the desktop shortcut created by Setup.exe. The graphical app
+Open the desktop shortcut created by Setup.exe on Windows, the application-menu entry on Linux,
+or the app under `~/Applications` on macOS. The graphical app
 provides file selection, book metadata, EPUB/Markdown/MOBI output choices, page processing modes,
 progress updates, and actionable error messages without requiring a terminal. The interface calls
 these choices **page processing modes**: all five use the same 6.5 GB OCR engine, while changing
@@ -272,6 +332,10 @@ Run `pdf-to-epub-ocr --help` for the complete interface.
 - MOBI is a legacy format; EPUB is recommended unless an older device or workflow requires MOBI.
 - AMD Windows support is beta and limited to AMD's published ROCm hardware matrix; the automated
   suite cannot execute AMD GPU inference on NVIDIA-hosted CI.
+- macOS packaging and GUI launch are tested, but actual local OCR is blocked because the upstream
+  DeepSeek OCR engine currently requires CUDA and does not support Apple Metal/MPS.
+- Automated Linux AMD setup is intentionally limited to the official Ubuntu 24.04, Python 3.12,
+  x86-64 ROCm 7.2.1 wheel combination; unsupported distributions are not modified automatically.
 - The automated test suite validates orchestration and text processing without downloading
   models or performing GPU OCR. Maintainers manually validate representative conversion output.
 
@@ -324,4 +388,3 @@ See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md),
 ## License
 
 Licensed under the [MIT License](LICENSE). Third-party dependencies retain their own licenses.
-

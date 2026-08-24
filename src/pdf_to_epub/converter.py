@@ -18,6 +18,7 @@ from pathlib import Path
 from typing import Literal, Protocol
 
 from pdf_to_epub.model_cache import configure_huggingface_cache
+from pdf_to_epub.platform_support import desktop_platform, macos_ocr_unavailable, repair_action
 
 logger = logging.getLogger(__name__)
 
@@ -468,17 +469,19 @@ def check_runtime(output_format: OutputFormat = "epub") -> str | None:
         raise ConversionError("Pandoc was not found on PATH. Install Pandoc before converting.")
     if output_format == "mobi" and find_ebook_convert() is None:
         raise ConversionError(
-            "Calibre ebook-convert was not found. Use Maintenance Center > Repair to enable "
-            "MOBI output."
+            "Calibre ebook-convert was not found. Install Calibre or repair the application "
+            "to enable MOBI output."
         )
     try:
         import torch
     except ImportError as error:
         raise ConversionError(
-            "PyTorch is not installed. Install a CUDA-compatible build first."
+            "PyTorch is not installed. Install a CUDA/ROCm-compatible build first."
         ) from error
 
     if not torch.cuda.is_available():
+        if desktop_platform() == "macos":
+            raise ConversionError(macos_ocr_unavailable())
         raise ConversionError(
             "CUDA/ROCm is not available. Local DeepSeek OCR requires a supported NVIDIA CUDA "
             "or AMD ROCm GPU and a matching PyTorch installation."
@@ -525,8 +528,8 @@ def check_runtime(output_format: OutputFormat = "epub") -> str | None:
     if backend == "cuda" and capability >= (12, 0) and "sm_120" not in arch_list:
         raise ConversionError(
             "This RTX 50 / Blackwell GPU needs a PyTorch build with sm_120 support. "
-            "On Windows, use Maintenance Center > Repair to install the CUDA 13 build. "
-            "Docker and manual installs must select the CUDA 13 PyTorch index."
+            f"{repair_action()} Docker and manual installs must select the CUDA 13 "
+            "PyTorch index."
         )
 
     try:
@@ -537,10 +540,9 @@ def check_runtime(output_format: OutputFormat = "epub") -> str | None:
         detail = str(error)
         if "no kernel image" in detail.lower():
             raise ConversionError(
-                "The installed PyTorch build cannot run kernels on this GPU. On Windows, open "
-                "Maintenance Center and select Repair so the matching NVIDIA CUDA or AMD ROCm "
-                "build can be installed. Docker and manual installs must select a compatible "
-                "PyTorch build."
+                "The installed PyTorch build cannot run kernels on this GPU. "
+                f"{repair_action()} Docker and manual installs must select a compatible "
+                "NVIDIA CUDA or AMD ROCm build."
             ) from error
         raise ConversionError(f"GPU acceleration could not run a startup test: {detail}") from error
 

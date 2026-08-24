@@ -47,6 +47,24 @@ jobs:
           path: release-assets/*.zip
           if-no-files-found: error
 
+  unix-bundles:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Create Linux and macOS bundles
+        run: |
+          mkdir release-assets
+          python scripts/build_unix_bundle.py --platform linux --output "release-assets/pdf-to-epub-ocr-${GITHUB_REF_NAME}-linux.zip"
+          python scripts/build_unix_bundle.py --platform macos --output "release-assets/pdf-to-epub-ocr-${GITHUB_REF_NAME}-macos.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unix-bundles
+          path: release-assets/*.zip
+          if-no-files-found: error
+
   windows-installer:
     runs-on: windows-2022
     steps:
@@ -73,7 +91,7 @@ jobs:
           if-no-files-found: error
 
   github-release:
-    needs: [build, windows-bundle, windows-installer]
+    needs: [build, windows-bundle, windows-installer, unix-bundles]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -105,4 +123,3 @@ jobs:
           name: python-distributions
           path: dist
       - uses: pypa/gh-action-pypi-publish@release/v1
-

@@ -86,9 +86,9 @@ jobs:
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path -LiteralPath $iscc)) { throw "Inno Setup compiler was not found." }
           New-Item -ItemType Directory -Path build\installer -Force | Out-Null
-          & $iscc "/DAppVersion=0.10.0" "/DSourceRoot=$PWD" "/DOutputDirectory=$PWD\build\installer" .\installer\pdf-to-epub.iss
+          & $iscc "/DAppVersion=0.11.0" "/DSourceRoot=$PWD" "/DOutputDirectory=$PWD\build\installer" .\installer\pdf-to-epub.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
-          if (-not (Test-Path -LiteralPath .\build\installer\pdf-to-epub-ocr-v0.10.0-windows-setup.exe)) { throw "Setup.exe was not created." }
+          if (-not (Test-Path -LiteralPath .\build\installer\pdf-to-epub-ocr-v0.11.0-windows-setup.exe)) { throw "Setup.exe was not created." }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -105,3 +105,23 @@ jobs:
       - uses: actions/checkout@v4
       - run: docker compose config --quiet
       - run: docker build --target syntax-check .
+
+  unix-desktop:
+    name: ${{ matrix.name }} launcher
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {name: Linux, os: ubuntu-latest, bundle: linux}
+          - {name: macOS, os: macos-latest, bundle: macos}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: bash -n setup.sh launch.sh
+      - run: ./setup.sh --self-test
+      - run: ./launch.sh --self-test
+      - run: python scripts/build_unix_bundle.py --platform "${{ matrix.bundle }}" --output "build/${{ matrix.bundle }}.zip"
+      - run: test -s "build/${{ matrix.bundle }}.zip"

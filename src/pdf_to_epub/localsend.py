@@ -8,6 +8,7 @@ import ipaddress
 import json
 import mimetypes
 import os
+import platform
 import socket
 import ssl
 import threading
@@ -171,7 +172,7 @@ def _sender_info(identity: LocalSendIdentity, *, port: int = DEFAULT_PORT) -> di
     return {
         "alias": "PDF to EPUB OCR",
         "version": PROTOCOL_VERSION,
-        "deviceModel": "Windows" if os.name == "nt" else "Desktop",
+        "deviceModel": platform.system() or ("Windows" if os.name == "nt" else "Desktop"),
         "deviceType": "desktop",
         "fingerprint": identity.fingerprint,
         "port": port,

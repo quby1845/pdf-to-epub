@@ -5,6 +5,7 @@ from zipfile import ZipFile
 
 import pytest
 
+from scripts.build_unix_bundle import create_unix_bundle
 from scripts.build_windows_bundle import (
     create_windows_bundle,
     normalize_batch_line_endings,
@@ -121,4 +122,35 @@ def test_release_workflow_builds_and_publishes_setup_exe() -> None:
     assert "windows-installer:" in workflow
     assert "Inno Setup 6\\ISCC.exe" in workflow
     assert "windows-setup.exe.sha256" in workflow
-    assert "needs: [build, windows-bundle, windows-installer]" in workflow
+    assert "unix-bundles:" in workflow
+    assert "build_unix_bundle.py --platform linux" in workflow
+    assert "build_unix_bundle.py --platform macos" in workflow
+    assert "needs: [build, windows-bundle, windows-installer, unix-bundles]" in workflow
+
+
+def test_unix_bundle_preserves_executable_installers(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    (repo / "src" / "pdf_to_epub").mkdir(parents=True)
+    for name in ("setup.sh", "launch.sh"):
+        (repo / name).write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+    for name in ("pyproject.toml", "README.md", "README_TR.md", "CHANGELOG.md", "LICENSE"):
+        (repo / name).write_text(name, encoding="utf-8")
+    (repo / "src" / "pdf_to_epub" / "__init__.py").write_text("", encoding="utf-8")
+
+    output = tmp_path / "linux.zip"
+    create_unix_bundle(repo, output, platform="linux")
+    with ZipFile(output) as archive:
+        setup = archive.getinfo("pdf-to-epub-ocr-linux/setup.sh")
+        assert (setup.external_attr >> 16) & 0o111
+        assert archive.read("pdf-to-epub-ocr-linux/README.md") == b"README.md"
+
+
+def test_unix_setup_has_platform_backends_and_safe_operations() -> None:
+    setup = Path("setup.sh").read_text(encoding="utf-8")
+    assert "PDF_TO_EPUB_UNIX_SETUP_OK" in setup
+    assert 'BACKEND="auto"' in setup
+    assert "rocm-rel-7.2.1" in setup
+    assert "cu130" in setup and "cu126" in setup
+    assert "torch.cuda.is_available" in setup
+    assert "Apple Silicon/Metal (MPS)" in setup
+    assert "--uninstall" in setup and "--repair" in setup and "--check" in setup

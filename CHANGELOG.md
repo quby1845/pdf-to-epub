@@ -9,6 +9,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Add native Linux and macOS setup/repair/check/uninstall scripts, application-menu launchers,
+  executable release bundles, and CI smoke tests on both operating systems.
+- Add automatic Linux NVIDIA CUDA setup, including the CUDA 13 path for RTX 50 cards, plus an
+  official Ubuntu 24.04/Python 3.12 AMD ROCm 7.2.1 installation path and real GPU kernel probe.
+- Add platform-specific repair guidance throughout the desktop error flow.
 - Add a persistent Turkish/English desktop language switcher covering the full interface,
   file dialogs, model/output labels, progress updates, and actionable error messages.
 - Add a real English Windows Setup.exe with per-user installation, Start menu integration,
@@ -21,6 +26,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Mark macOS desktop packaging separately from OCR capability: the interface installs and opens,
+  but conversion remains disabled until upstream DeepSeek OCR supports Apple Metal/MPS instead
+  of requiring CUDA.
 - Make English the default desktop language for fresh installations while retaining the
   persistent Turkish switch.
 - Keep the easy-start ZIP and batch launchers as legacy troubleshooting tools instead of the
@@ -295,4 +303,3 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 [0.1.2]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/quby1845/pdf-to-epub/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/quby1845/pdf-to-epub/releases/tag/v0.1.0
-

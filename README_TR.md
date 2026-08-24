@@ -10,7 +10,7 @@ kitabın sayfaları bir metin API'sine gönderilmez.
 
 ## Bilgisayarım uygun mu?
 
-- Windows 10 veya Windows 11
+- Windows 10/11 veya desteklenen bir Linux dağıtımı
 - Python 3.11–3.13 (yoksa kolay kurulum yüklemeyi dener)
 - Desteklenen NVIDIA CUDA veya AMD ROCm ekran kartı; pratik alt sınır 8 GB VRAM
 - En az 16 GB RAM ve yaklaşık 20 GB boş alan
@@ -22,6 +22,11 @@ GPU uygulamalarını kapatmak gerekebilir; daha fazla VRAM daha
 rahat çalışır. Arayüzdeki sayfa işleme modu 6,5 GB model indirmesinin ve ana modelin bellekteki
 boyutunu değil, sayfaların işlenme çözünürlüğünü, kırpma yöntemini ve ek çalışma belleğini
 değiştirir.
+
+Linux'ta NVIDIA CUDA tam olarak desteklenir. Desteklenen AMD kartlar için otomatik yol şimdilik
+Ubuntu 24.04, x86-64, Python 3.12 ve ROCm 7.2.1 ile sınırlıdır. macOS uygulaması kurulup açılır;
+ancak upstream DeepSeek OCR motoru CUDA istediği ve Apple Metal/MPS desteklemediği için Mac'te
+yerel dönüşüm henüz çalışmaz. Program bunu işlem başlamadan açıkça bildirir.
 
 ## Windows Setup ile üç adımda kurulum
 
@@ -50,6 +55,35 @@ verir. PyTorch AMD'de de `torch.cuda` ad alanını kullandığı için bu isim l
 Kurulum, gerçek GPU tensörü çalıştırmadan tamamlandı sayılmaz. Güncel liste için AMD'nin
 [Windows uyumluluk tablosuna](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/windows/windows_compatibility.html)
 bakabilirsiniz.
+
+## Linux ve macOS kurulumu
+
+[Son sürüm sayfasından](https://github.com/quby1845/pdf-to-epub/releases/latest) Linux için
+`linux.zip`, Mac için `macos.zip` ile biten paketi indirin. ZIP'i çıkardıktan sonra Terminal'i bu
+klasörde açıp çalıştırın:
+
+```bash
+chmod +x setup.sh launch.sh
+./setup.sh
+```
+
+Linux'ta uygulama menüsüne **PDF to EPUB OCR** eklenir. Kurulum NVIDIA kartı algılayıp RTX 30/40
+için CUDA 12.6, RTX 50 için CUDA 13 paketini seçer. Uyumlu Ubuntu/AMD sisteminde resmi ROCm
+7.2.1 paketlerini kurar ve gerçek GPU işlemiyle doğrular. Güncel AMD kart ve işletim sistemi
+listesini [Linux ROCm uyumluluk tablosundan](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/native_linux/native_linux_compatibility.html)
+kontrol edin.
+
+macOS'ta program `~/Applications/PDF to EPUB OCR.app` konumuna eklenir. Homebrew yoksa kurulum
+size önce [brew.sh](https://brew.sh) adresinden kurmanızı söyler. Mac paketi arayüz ve gelecekteki
+OCR desteği için hazırdır; Apple Silicon ile dönüşüm desteği varmış gibi davranmaz.
+
+Bakım komutları:
+
+```bash
+./setup.sh --check
+./setup.sh --repair
+./setup.sh --uninstall
+```
 
 ## Docker ile kurulum (isteğe bağlı)
 
@@ -217,4 +251,3 @@ kopya olarak hazırlanır; `.ipynb_checkpoints` ve `README-checkpoint.md` gibi m
 dosyalar dönüşüm ön koşulu değildir. Bu indirme belgenizin içeriğini göndermez.
 Kullanılan açık kaynak bileşenler ve ayrıntılı teknik bilgiler için
 [ana README dosyasına](README.md) bakabilirsiniz.
-

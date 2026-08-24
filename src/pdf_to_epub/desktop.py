@@ -21,6 +21,7 @@ from pdf_to_epub.converter import (
     suggested_output_name,
 )
 from pdf_to_epub.i18n import UiLanguage, normalize_ui_language
+from pdf_to_epub.platform_support import desktop_platform, macos_ocr_unavailable, repair_action
 
 MODEL_LABELS = {
     "Tiny — 512 px / tahmini ≈7 GB VRAM": "tiny",
@@ -385,39 +386,41 @@ def model_description(model_label: str, ui_language: str = "tr") -> str:
     return descriptions[model]
 
 
-def friendly_error(error: Exception, ui_language: str = "tr") -> str:
+def friendly_error(
+    error: Exception,
+    ui_language: str = "tr",
+    *,
+    platform: str | None = None,
+) -> str:
     """Add localized, actionable guidance to common runtime failures."""
     message = str(error)
     english = normalize_ui_language(ui_language) == "en"
+    language = "en" if english else "tr"
+    repair = repair_action(platform=platform, language=language)
     if "Pandoc was not found" in message:
-        return (
-            "Pandoc was not found. Open Maintenance Center and select Repair."
-            if english
-            else "Pandoc bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
-        )
+        return f"Pandoc was not found. {repair}" if english else f"Pandoc bulunamadı. {repair}"
     if "Calibre ebook-convert was not found" in message:
         return (
-            "Calibre was not found for MOBI output. Open Maintenance Center and select Repair."
+            f"Calibre was not found for MOBI output. {repair}"
             if english
-            else "MOBI için Calibre bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
+            else f"MOBI için Calibre bulunamadı. {repair}"
         )
     if "PyTorch is not installed" in message:
-        return (
-            "PyTorch was not found. Open Maintenance Center and select Repair."
-            if english
-            else "PyTorch bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
-        )
+        return f"PyTorch was not found. {repair}" if english else f"PyTorch bulunamadı. {repair}"
+    if "Apple Silicon/Metal (MPS)" in message:
+        return macos_ocr_unavailable(language=language)
     if "CUDA/ROCm is not available" in message or "CUDA is not available" in message:
+        if desktop_platform(platform) == "macos":
+            return macos_ocr_unavailable(language=language)
         if english:
             return (
                 "GPU acceleration is unavailable. This OCR engine cannot run on the CPU. "
                 "Check the driver for a supported NVIDIA CUDA or AMD ROCm graphics card, "
-                "then open Maintenance Center and select Repair."
+                f"then repair the installation. {repair}"
             )
         return (
             "GPU hızlandırması kullanılamıyor. Bu OCR motoru CPU ile çalışmaz. Desteklenen "
-            "NVIDIA CUDA veya AMD ROCm ekran kartı sürücüsünü kontrol edip KURULUM.bat "
-            "dosyasını yeniden çalıştırın."
+            f"NVIDIA CUDA veya AMD ROCm ekran kartı sürücüsünü kontrol edin. {repair}"
         )
     if "Output already exists" in message:
         return (
@@ -472,11 +475,11 @@ def friendly_error(error: Exception, ui_language: str = "tr") -> str:
         if english:
             return (
                 "The installed PyTorch/CUDA version is not compatible with your graphics "
-                "card. Open Maintenance Center and select Repair. Details: " + message
+                f"card. {repair} Details: " + message
             )
         return (
-            "Ekran kartınızla uyumlu PyTorch/CUDA sürümü kurulu değil. KURULUM.bat dosyasını "
-            "yeniden çalıştırın. Ayrıntı: " + message
+            f"Ekran kartınızla uyumlu PyTorch/CUDA sürümü kurulu değil. {repair} Ayrıntı: "
+            + message
         )
     if "WinError 1314" in message or "privilege" in message.lower():
         if english:
