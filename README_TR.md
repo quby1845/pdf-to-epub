@@ -123,6 +123,10 @@ Sağ üstteki **Koyu tema** düğmesiyle görünümü değiştirebilirsiniz. Se�
 bir sonraki açılışta aynı temayı kullanır. Dönüşüm sürerken yanlışlıkla arayüzü yenilememek için
 tema düğmesi işlem bitene kadar geçici olarak kilitlenir.
 
+Üst bölümdeki **English / Türkçe** düğmesi arayüzün tamamını anında değiştirir. Dosya pencereleri,
+model açıklamaları, ilerleme bilgileri ve hata mesajları da seçilen dile çevrilir. Dil seçimi
+hatırlanır ve uygulama bir sonraki açılışta aynı dili kullanır.
+
 Modern arayüzde her adım ve işlem için açık/koyu temaya uyumlu simgeler bulunur. PDF seçildiğinde
 dosya adı, boyutu ve bulunduğu klasör tek bakışta gösterilir. Bu simgeler programla birlikte gelir;
 arayüz açılırken internetten hiçbir görsel indirilmez.

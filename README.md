@@ -23,8 +23,9 @@ on your machine; no document text is sent to an external API.
    [latest release](https://github.com/quby1845/pdf-to-epub/releases/latest) and extract it.
 2. Double-click **`KURULUM.bat`**. It installs the required components and creates desktop and
    Start menu shortcuts. The first setup can take 10–30 minutes because the OCR stack is large.
-3. Open **PDF to EPUB OCR** from the desktop or Start menu, select a PDF, choose EPUB, Markdown,
-   or MOBI, confirm the book details, and click **Dönüştür**.
+3. Open **PDF to EPUB OCR** from the desktop or Start menu, select **English** in the header if
+   needed, choose a PDF and EPUB, Markdown, or MOBI, confirm the book details, and click
+   **Convert**.
 
 The desktop app keeps the document on your computer and saves the selected output beside the
 PDF by default. Once setup is complete, the app launches without a command prompt and provides
@@ -175,7 +176,9 @@ page count, completion percentage, estimated remaining time after the first thre
 rendering, and the first model-load/inference phase from pdf-craft's page events. EPUB and MOBI
 use the complete first PDF page as a dedicated cover. During page OCR, **Pause** stops work at the
 next safe checkpoint without losing completed pages; **Resume** continues the same conversion.
-The model remains loaded in VRAM while paused. A persistent light/dark theme
+The model remains loaded in VRAM while paused. The complete desktop interface, including dialogs,
+progress updates, model guidance, and error messages, can switch instantly between Turkish and
+English; the selected language is remembered for the next launch. A persistent light/dark theme
 toggle updates the complete interface, including native Windows chrome. The modern step-based
 layout uses bundled theme-aware icons, a visual file summary, and clear status feedback; no UI
 assets are fetched from the internet.

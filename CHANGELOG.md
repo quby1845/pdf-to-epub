@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Add a persistent Turkish/English desktop language switcher covering the full interface,
+  file dialogs, model/output labels, progress updates, and actionable error messages.
+
 ## [0.9.1] - 2026-08-20
 
 ### Added
