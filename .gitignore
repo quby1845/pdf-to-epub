@@ -24,6 +24,8 @@ input/
 output/
 temp/
 models/
+!koreader-plugin/internal/models/
+!koreader-plugin/internal/models/**
 *-work/
 *.epub
 
