@@ -24,7 +24,7 @@ jobs:
           test "v${package_version}" = "${GITHUB_REF_NAME}"
       - run: python -m build
       - run: python -m twine check dist/*
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: python-distributions
           path: |
@@ -41,7 +41,7 @@ jobs:
           mkdir release-assets
           python scripts/build_windows_bundle.py \
             --output="release-assets/pdf-to-epub-ocr-${GITHUB_REF_NAME}-windows-easy-start.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-easy-start
           path: release-assets/*.zip
@@ -59,7 +59,7 @@ jobs:
           mkdir release-assets
           python scripts/build_unix_bundle.py --platform linux --output "release-assets/pdf-to-epub-ocr-${GITHUB_REF_NAME}-linux.zip"
           python scripts/build_unix_bundle.py --platform macos --output "release-assets/pdf-to-epub-ocr-${GITHUB_REF_NAME}-macos.zip"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: unix-bundles
           path: release-assets/*.zip
@@ -82,7 +82,7 @@ jobs:
           $installer = Get-Item "release-assets\pdf-to-epub-ocr-v$version-windows-setup.exe"
           $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
           Set-Content -LiteralPath "$($installer.FullName).sha256" -Encoding Ascii -Value "$hash  $($installer.Name)"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: windows-installer
           path: |
@@ -118,7 +118,7 @@ jobs:
             unzip -tq "$output"
             cp "$output" release-assets/
           done
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: koreader-plugin
           path: release-assets/*.zip
