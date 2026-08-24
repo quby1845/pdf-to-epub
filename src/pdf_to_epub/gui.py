@@ -158,15 +158,11 @@ class PdfToEpubApp:
         self.output_var = tk.StringVar()
         self.title_var = tk.StringVar()
         self.author_var = tk.StringVar(value=self._t("unknown_author"))
-        self.language_var = tk.StringVar(value="tr")
+        self.language_var = tk.StringVar(value=self.ui_language)
         initial_model = default_model_label(self.ui_language)
         self.model_var = tk.StringVar(value=initial_model)
-        self.output_format_var = tk.StringVar(
-            value=default_output_format_label(self.ui_language)
-        )
-        self.model_help_var = tk.StringVar(
-            value=model_description(initial_model, self.ui_language)
-        )
+        self.output_format_var = tk.StringVar(value=default_output_format_label(self.ui_language))
+        self.model_help_var = tk.StringVar(value=model_description(initial_model, self.ui_language))
         self.status_var = tk.StringVar(value=self._t("initial_status"))
         self.selected_file_var = tk.StringVar(value=self._t("no_pdf"))
         self.selected_file_detail_var = tk.StringVar(value=self._t("no_pdf_detail"))
@@ -177,7 +173,7 @@ class PdfToEpubApp:
         self.root.after(100, self._poll_events)
 
     def _t(self, key: str, **values: object) -> str:
-        return translate(getattr(self, "ui_language", "tr"), key, **values)
+        return translate(getattr(self, "ui_language", "en"), key, **values)
 
     def _configure_styles(self) -> None:
         style = ttk.Style(self.root)
@@ -973,9 +969,7 @@ class PdfToEpubApp:
         self.pause_controller = pause_controller
         self.theme_button.configure(state="disabled", cursor="arrow")
         self.language_button.configure(state="disabled", cursor="arrow")
-        self.convert_button.configure(
-            state="disabled", text=self._t("converting"), cursor="arrow"
-        )
+        self.convert_button.configure(state="disabled", text=self._t("converting"), cursor="arrow")
         self._configure_pause_button(enabled=False, paused=False)
         self.progress.configure(mode="indeterminate", maximum=100, value=0)
         self.progress.start(12)
@@ -1015,9 +1009,7 @@ class PdfToEpubApp:
                 if kind == "progress":
                     self._apply_progress(payload)  # type: ignore[arg-type]
                 elif kind == "warning":
-                    self._set_status(
-                        self._t("warning_prefix", message=payload), kind="warning"
-                    )
+                    self._set_status(self._t("warning_prefix", message=payload), kind="warning")
                     messagebox.showwarning(self._t("low_vram"), str(payload))
                 elif kind == "success":
                     self._finish_success(payload)  # type: ignore[arg-type]
@@ -1089,9 +1081,7 @@ class PdfToEpubApp:
         self._reset_pause_state()
         self.theme_button.configure(state="normal", cursor="hand2")
         self.language_button.configure(state="normal", cursor="hand2")
-        self.convert_button.configure(
-            state="normal", text=self._t("convert"), cursor="hand2"
-        )
+        self.convert_button.configure(state="normal", text=self._t("convert"), cursor="hand2")
         self.last_output = Path(result.output_path)
         self._set_stage(3)
         self._set_status(
@@ -1111,9 +1101,7 @@ class PdfToEpubApp:
         self._reset_pause_state()
         self.theme_button.configure(state="normal", cursor="hand2")
         self.language_button.configure(state="normal", cursor="hand2")
-        self.convert_button.configure(
-            state="normal", text=self._t("retry"), cursor="hand2"
-        )
+        self.convert_button.configure(state="normal", text=self._t("retry"), cursor="hand2")
         self._set_status(self._t("failed_status", message=message), kind="error")
         log_hint = "\n\n" + self._t("log_hint", path=diagnostic_log_path())
         messagebox.showerror(self._t("conversion_error"), message + log_hint)
@@ -1182,6 +1170,7 @@ class PdfToEpubApp:
         previous_unknown_author = self._t("unknown_author")
         previous_initial_status = self._t("initial_status")
         previous_pdf_ready = self._t("pdf_ready")
+        previous_book_language = self.language_var.get().strip().casefold()
 
         self.ui_language = "en" if previous_language == "tr" else "tr"
         save_language_preference(self.ui_language)
@@ -1197,6 +1186,8 @@ class PdfToEpubApp:
         self.model_help_var.set(model_description(self.model_var.get(), self.ui_language))
         if self.author_var.get().strip() == previous_unknown_author:
             self.author_var.set(self._t("unknown_author"))
+        if previous_book_language == previous_language:
+            self.language_var.set(self.ui_language)
         if not self.pdf_var.get().strip():
             self.selected_file_var.set(self._t("no_pdf"))
             self.selected_file_detail_var.set(self._t("no_pdf_detail"))

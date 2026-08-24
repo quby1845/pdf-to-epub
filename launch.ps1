@@ -21,6 +21,6 @@ $installRoot = if ($env:PDF_TO_EPUB_INSTALL_ROOT) {
 }
 $launcher = Join-Path $installRoot "venv\Scripts\pdf-to-epub-gui.exe"
 if (-not (Test-Path $launcher)) {
-    throw "Uygulama bulunamadi. KURULUM.bat dosyasini yeniden calistirin."
+    throw "The application was not found. Run Setup again."
 }
 Start-Process -FilePath $launcher -WorkingDirectory $PSScriptRoot

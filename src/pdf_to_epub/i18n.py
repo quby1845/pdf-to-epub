@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Literal
 
 UiLanguage = Literal["tr", "en"]
-DEFAULT_UI_LANGUAGE: UiLanguage = "tr"
+DEFAULT_UI_LANGUAGE: UiLanguage = "en"
 LANGUAGE_NAMES: dict[UiLanguage, str] = {"tr": "Türkçe", "en": "English"}
 
 
@@ -133,8 +133,9 @@ _TEXT: dict[str, dict[UiLanguage, str]] = {
 
 
 def normalize_ui_language(value: str) -> UiLanguage:
-    """Return a supported language code with a stable Turkish fallback."""
-    return "en" if value.strip().casefold().startswith("en") else "tr"
+    """Return a supported language code with a stable English fallback."""
+    normalized = value.strip().casefold()
+    return "tr" if normalized.startswith("tr") else "en"
 
 
 def translate(language: str, key: str, **values: object) -> str:

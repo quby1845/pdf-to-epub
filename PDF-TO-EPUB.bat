@@ -15,17 +15,17 @@ exit /b 0
 
 :not_installed
 echo.
-echo [BILGI] Program henuz kurulmamis. Kolay kurulum baslatiliyor...
+echo [INFO] The application is not installed yet. Starting legacy setup...
 call "%~dp0KURULUM.bat"
 exit /b %errorlevel%
 
 :powershell_missing
-echo [HATA] Windows PowerShell bulunamadi.
+echo [ERROR] Windows PowerShell was not found.
 pause
 exit /b 1
 
 :launch_failed
-echo [HATA] Uygulama acilamadi. KURULUM.bat dosyasini yeniden calistirin.
+echo [ERROR] The application could not start. Run Setup or KURULUM.bat again.
 pause
 exit /b 1
 

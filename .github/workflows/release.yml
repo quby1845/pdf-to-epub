@@ -47,8 +47,33 @@ jobs:
           path: release-assets/*.zip
           if-no-files-found: error
 
+  windows-installer:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build signed-hash Windows Setup
+        shell: powershell
+        run: |
+          $version = (Get-Content pyproject.toml | Select-String '^version = "([^"]+)"$').Matches.Groups[1].Value
+          if ("v$version" -ne $env:GITHUB_REF_NAME) { throw "Tag does not match package version." }
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path -LiteralPath $iscc)) { throw "Inno Setup compiler was not found." }
+          New-Item -ItemType Directory -Path release-assets -Force | Out-Null
+          & $iscc "/DAppVersion=$version" "/DSourceRoot=$PWD" "/DOutputDirectory=$PWD\release-assets" .\installer\pdf-to-epub.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
+          $installer = Get-Item "release-assets\pdf-to-epub-ocr-v$version-windows-setup.exe"
+          $hash = (Get-FileHash -LiteralPath $installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          Set-Content -LiteralPath "$($installer.FullName).sha256" -Encoding Ascii -Value "$hash  $($installer.Name)"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          path: |
+            release-assets/*-windows-setup.exe
+            release-assets/*-windows-setup.exe.sha256
+          if-no-files-found: error
+
   github-release:
-    needs: [build, windows-bundle]
+    needs: [build, windows-bundle, windows-installer]
     runs-on: ubuntu-latest
     permissions:
       contents: write

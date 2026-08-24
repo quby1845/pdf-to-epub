@@ -51,6 +51,7 @@ def test_scrolling_over_selector_scrolls_page_and_stops_combobox_binding() -> No
 def test_pause_button_pauses_and_resumes_the_same_conversion() -> None:
     statuses: list[tuple[str, str]] = []
     app = object.__new__(PdfToEpubApp)
+    app.ui_language = "tr"
     app.converting = True
     app.paused = False
     app.pause_controller = ConversionPauseController()
@@ -85,6 +86,7 @@ def test_language_toggle_localizes_defaults_and_preserves_choices(monkeypatch) -
     app.output_format_var = FakeVar("Markdown — düzenlenebilir metin (.md)")
     app.model_help_var = FakeVar("")
     app.author_var = FakeVar("Bilinmiyor")
+    app.language_var = FakeVar("tr")
     app.pdf_var = FakeVar("")
     app.selected_file_var = FakeVar("Henüz PDF seçilmedi")
     app.selected_file_detail_var = FakeVar(
@@ -101,6 +103,7 @@ def test_language_toggle_localizes_defaults_and_preserves_choices(monkeypatch) -
     assert app.model_var.get() == "Small — 640 px / estimated ≈7.5 GB VRAM"
     assert app.output_format_var.get() == "Markdown — editable text (.md)"
     assert app.author_var.get() == "Unknown"
+    assert app.language_var.get() == "en"
     assert app.selected_file_var.get() == "No PDF selected yet"
     assert app.status_var.get() == "Start by choosing a PDF."
     assert rebuilt == [True]

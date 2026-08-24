@@ -82,8 +82,7 @@ _ENGLISH_MODEL_DESCRIPTIONS = {
         "Estimated ≈7.5 GB."
     ),
     "base": (
-        "The same 6.5 GB OCR engine at 1024 px. A balanced choice for clean scans. "
-        "Estimated ≈8 GB."
+        "The same 6.5 GB OCR engine at 1024 px. A balanced choice for clean scans. Estimated ≈8 GB."
     ),
     "large": (
         "The same 6.5 GB OCR engine at 1280 px. Recommended quality/speed balance for "
@@ -147,12 +146,12 @@ def language_preference_path() -> Path:
 
 
 def load_language_preference(settings_path: Path | None = None) -> UiLanguage:
-    """Load the saved UI language with a stable Turkish fallback."""
+    """Load the saved UI language with a stable English fallback."""
     path = settings_path or language_preference_path()
     try:
         value = path.read_text(encoding="utf-8")
     except OSError:
-        return "tr"
+        return "en"
     return normalize_ui_language(value)
 
 
@@ -268,9 +267,7 @@ def build_conversion_options(
         )
     if output_format_label not in output_labels:
         raise ValueError(
-            "Please choose a valid output format."
-            if english
-            else "Geçerli bir çıktı biçimi seçin."
+            "Please choose a valid output format." if english else "Geçerli bir çıktı biçimi seçin."
         )
     try:
         selected_format = output_format_from_path(epub_path)
@@ -288,9 +285,7 @@ def build_conversion_options(
         )
     if model_label not in available_model_labels:
         raise ValueError(
-            "Please choose a valid OCR model."
-            if english
-            else "Geçerli bir OCR modeli seçin."
+            "Please choose a valid OCR model." if english else "Geçerli bir OCR modeli seçin."
         )
 
     clean_title = title.strip() or pdf_path.stem
@@ -314,9 +309,7 @@ def friendly_progress(progress: ConversionProgress | str, ui_language: str = "tr
     if isinstance(progress, ConversionProgress):
         if progress.current_page is not None and progress.total_pages is not None:
             percentage = progress.percentage or 0
-            remaining = _format_remaining_time(
-                progress.estimated_remaining_seconds, ui_language
-            )
+            remaining = _format_remaining_time(progress.estimated_remaining_seconds, ui_language)
             if progress.message == "Rendering PDF page":
                 if english:
                     return (
@@ -398,19 +391,19 @@ def friendly_error(error: Exception, ui_language: str = "tr") -> str:
     english = normalize_ui_language(ui_language) == "en"
     if "Pandoc was not found" in message:
         return (
-            "Pandoc was not found. Run KURULUM.bat again."
+            "Pandoc was not found. Open Maintenance Center and select Repair."
             if english
             else "Pandoc bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
         )
     if "Calibre ebook-convert was not found" in message:
         return (
-            "Calibre was not found for MOBI output. Run KURULUM.bat again."
+            "Calibre was not found for MOBI output. Open Maintenance Center and select Repair."
             if english
             else "MOBI için Calibre bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
         )
     if "PyTorch is not installed" in message:
         return (
-            "PyTorch was not found. Run KURULUM.bat again."
+            "PyTorch was not found. Open Maintenance Center and select Repair."
             if english
             else "PyTorch bulunamadı. KURULUM.bat dosyasını yeniden çalıştırın."
         )
@@ -419,7 +412,7 @@ def friendly_error(error: Exception, ui_language: str = "tr") -> str:
             return (
                 "GPU acceleration is unavailable. This OCR engine cannot run on the CPU. "
                 "Check the driver for a supported NVIDIA CUDA or AMD ROCm graphics card, "
-                "then run KURULUM.bat again."
+                "then open Maintenance Center and select Repair."
             )
         return (
             "GPU hızlandırması kullanılamıyor. Bu OCR motoru CPU ile çalışmaz. Desteklenen "
@@ -479,7 +472,7 @@ def friendly_error(error: Exception, ui_language: str = "tr") -> str:
         if english:
             return (
                 "The installed PyTorch/CUDA version is not compatible with your graphics "
-                "card. Run KURULUM.bat again. Details: " + message
+                "card. Open Maintenance Center and select Repair. Details: " + message
             )
         return (
             "Ekran kartınızla uyumlu PyTorch/CUDA sürümü kurulu değil. KURULUM.bat dosyasını "

@@ -1,10 +1,13 @@
-# Windows setup used by KURULUM.bat.
+# Windows runtime setup used by Setup.exe and the legacy batch launcher.
 # This file intentionally uses ASCII text for Windows PowerShell 5.1 compatibility.
 
 param(
     [switch] $SelfTest,
     [switch] $PythonProbeSelfTest,
-    [switch] $InstallerLogicSelfTest
+    [switch] $InstallerLogicSelfTest,
+    [ValidateSet("Install", "Repair")] [string] $Operation = "Install",
+    [switch] $SkipShortcuts,
+    [string] $LogPath
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,6 +15,13 @@ $ErrorActionPreference = "Stop"
 if ($SelfTest) {
     Write-Output "PDF_TO_EPUB_SETUP_OK"
     exit 0
+}
+
+if ($LogPath) {
+    $resolvedLogPath = [IO.Path]::GetFullPath($LogPath)
+    New-Item -ItemType Directory -Path ([IO.Path]::GetDirectoryName($resolvedLogPath)) -Force |
+        Out-Null
+    Start-Transcript -LiteralPath $resolvedLogPath -Force | Out-Null
 }
 
 function Get-ManagedInstallRoot {
@@ -157,7 +167,7 @@ function Reset-ManagedVenv {
     $resolvedVenv = [IO.Path]::GetFullPath($VenvPath).TrimEnd('\')
     if ([IO.Path]::GetDirectoryName($resolvedVenv) -ne $resolvedRoot -or
         [IO.Path]::GetFileName($resolvedVenv) -ne "venv") {
-        throw "Guvenlik denetimi: yonetilen Python ortami disindaki bir klasor silinemez."
+        throw "Safety check failed: cannot remove a directory outside the managed environment."
     }
     if (Test-Path -LiteralPath $resolvedVenv) {
         Remove-Item -LiteralPath $resolvedVenv -Recurse -Force
@@ -295,15 +305,15 @@ function Get-GpuProfile {
     $amdProfile = Get-SupportedAmdGpuProfile
     if ($amdProfile) {
         if ([Environment]::OSVersion.Version.Build -lt 22000) {
-            throw "AMD ROCm destegi Windows 11 gerektirir."
+            throw "AMD ROCm support requires Windows 11."
         }
         return $amdProfile
     }
     $amdName = Get-AnyAmdGpuName
     if ($amdName) {
-        throw "AMD ekran karti '$amdName' resmi Windows ROCm 7.2.1 destek listesinde degil."
+        throw "AMD graphics card '$amdName' is not on the official Windows ROCm 7.2.1 list."
     }
-    throw "Desteklenen NVIDIA CUDA veya AMD ROCm ekran karti bulunamadi."
+    throw "No supported NVIDIA CUDA or AMD ROCm graphics card was found."
 }
 
 function Get-TorchChannel {
@@ -345,10 +355,10 @@ function Install-WingetPackage {
         [Parameter(Mandatory = $true)] [string] $Id,
         [Parameter(Mandatory = $true)] [string] $DisplayName
     )
-    Write-Host "$DisplayName kuruluyor..." -ForegroundColor Green
+    Write-Host "Installing $DisplayName..." -ForegroundColor Green
     winget install --exact --id $Id --accept-source-agreements --accept-package-agreements --silent
     if ($LASTEXITCODE -ne 0) {
-        throw "$DisplayName kurulamadi (winget cikis kodu: $LASTEXITCODE)."
+        throw "$DisplayName could not be installed (winget exit code: $LASTEXITCODE)."
     }
 }
 
@@ -367,11 +377,11 @@ function Install-AmdRocmPyTorch {
     )
     & $PythonCommand -m pip install --no-cache-dir @sdkPackages
     if ($LASTEXITCODE -ne 0) {
-        throw "AMD ROCm 7.2.1 bilesenleri kurulamadi."
+        throw "AMD ROCm 7.2.1 components could not be installed."
     }
     & $PythonCommand -m pip install --no-cache-dir --force-reinstall @torchPackages
     if ($LASTEXITCODE -ne 0) {
-        throw "AMD ROCm PyTorch paketleri kurulamadi."
+        throw "AMD ROCm PyTorch packages could not be installed."
     }
 }
 
@@ -382,7 +392,7 @@ if ($PythonProbeSelfTest) {
         $brokenPython = Join-Path $probeRoot "python.cmd"
         $workingPython = Join-Path $probeRoot "python312.cmd"
         Set-Content -LiteralPath $brokenPython -Encoding Ascii -Value @(
-            "@echo off", "echo Python bulunamadi 1>&2", "exit /b 9009"
+            "@echo off", "echo Python was not found 1>&2", "exit /b 9009"
         )
         Set-Content -LiteralPath $workingPython -Encoding Ascii -Value @(
             "@echo off", "echo 3.12", "exit /b 0"
@@ -464,19 +474,19 @@ if message != "GPU acceleration is not available":
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "  PDF to EPUB OCR - Kolay Kurulum" -ForegroundColor Cyan
+Write-Host "  PDF to EPUB OCR - $Operation" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 
 $gpuProfile = Get-GpuProfile
 $requiredPython = if ($gpuProfile.Vendor -eq "amd") { "3.12" } else { $null }
 if ($gpuProfile.Vendor -eq "amd") {
-    Write-Host "AMD ROCm beta: Windows 11, Python 3.12 ve Radeon surucusu 26.2.2 gerekir." -ForegroundColor Yellow
+    Write-Host "AMD ROCm beta requires Windows 11, Python 3.12, and Radeon driver 26.2.2." -ForegroundColor Yellow
 }
 $python = Find-SupportedPython -RequiredVersion $requiredPython
 if (-not $python) {
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Write-Host "Uygun Python surumu bulunamadi ve winget kullanilamiyor." -ForegroundColor Red
-        Write-Host "Once https://www.python.org/downloads/ adresinden Python 3.12 kurun." -ForegroundColor Yellow
+        Write-Host "A supported Python version was not found and winget is unavailable." -ForegroundColor Red
+        Write-Host "Install Python 3.12 from https://www.python.org/downloads/ first." -ForegroundColor Yellow
         exit 1
     }
     Install-WingetPackage -Id "Python.Python.3.12" -DisplayName "Python 3.12"
@@ -484,8 +494,8 @@ if (-not $python) {
 }
 
 if (-not $python) {
-    Write-Host "Python kuruldu ancak bu oturumda bulunamadi." -ForegroundColor Yellow
-    Write-Host "Bilgisayari yeniden baslatip KURULUM.bat dosyasini tekrar acin." -ForegroundColor Yellow
+    Write-Host "Python was installed but is not visible in this session yet." -ForegroundColor Yellow
+    Write-Host "Restart Windows, then run Setup again." -ForegroundColor Yellow
     exit 1
 }
 
@@ -495,20 +505,20 @@ $venvPython = Join-Path $venvPath "Scripts\python.exe"
 $torchProbe = Get-TorchProbeCode -GpuProfile $gpuProfile
 New-Item -ItemType Directory -Path $installRoot -Force | Out-Null
 
-Write-Host "[1/7] Kisa yoldaki Python ortami kontrol ediliyor..." -ForegroundColor Green
+Write-Host "[1/7] Validating the managed Python environment..." -ForegroundColor Green
 $venvValid = Test-PythonCommand -Command $venvPython -Code "import sys; assert sys.prefix != sys.base_prefix"
 if ($venvValid -and $requiredPython -and
     -not (Test-PythonCommand -Command $venvPython -Code "import sys; assert f'{sys.version_info.major}.{sys.version_info.minor}' == '$requiredPython'")) {
-    Write-Host "AMD ROCm icin Python 3.12 ortami yeniden olusturuluyor." -ForegroundColor Yellow
+    Write-Host "Recreating the Python 3.12 environment required by AMD ROCm." -ForegroundColor Yellow
     Reset-ManagedVenv -InstallRoot $installRoot -VenvPath $venvPath
     $venvValid = $false
 }
 if ($venvValid -and -not (Test-PythonCommand -Command $venvPython -Code "import torch")) {
-    Write-Host "Yarim veya bozuk PyTorch kurulumu bulundu; Python ortami onariliyor." -ForegroundColor Yellow
+    Write-Host "A partial or broken PyTorch install was found; repairing the environment." -ForegroundColor Yellow
     Reset-ManagedVenv -InstallRoot $installRoot -VenvPath $venvPath
     $venvValid = $false
 } elseif (-not $venvValid -and (Test-Path -LiteralPath $venvPath)) {
-    Write-Host "Yarim veya bozuk Python ortami bulundu; yeniden olusturuluyor." -ForegroundColor Yellow
+    Write-Host "A partial or broken Python environment was found; recreating it." -ForegroundColor Yellow
     Reset-ManagedVenv -InstallRoot $installRoot -VenvPath $venvPath
 }
 
@@ -516,106 +526,111 @@ if (-not $venvValid) {
     Invoke-SelectedPython -Selection $python -PythonArguments @("-m", "venv", $venvPath)
     if ($LASTEXITCODE -ne 0 -or
         -not (Test-PythonCommand -Command $venvPython -Code "import sys; assert sys.prefix != sys.base_prefix")) {
-        throw "Python ortami olusturulamadi."
+        throw "The managed Python environment could not be created."
     }
 } else {
-    Write-Host "Mevcut kisa-yol Python ortami kullanilacak." -ForegroundColor Yellow
+    Write-Host "Reusing the existing managed Python environment." -ForegroundColor Yellow
 }
 
-Write-Host "[2/7] Kurulum araclari guncelleniyor..." -ForegroundColor Green
+Write-Host "[2/7] Updating installation tools..." -ForegroundColor Green
 & $venvPython -m pip install --upgrade pip
-if ($LASTEXITCODE -ne 0) { throw "pip guncellenemedi." }
+if ($LASTEXITCODE -ne 0) { throw "pip could not be updated." }
 
-Write-Host "[3/7] Ekran karti ve PyTorch uyumu kontrol ediliyor..." -ForegroundColor Green
-Write-Host "Ekran karti: $($gpuProfile.Name); altyapi: $($gpuProfile.Vendor)" -ForegroundColor Cyan
+Write-Host "[3/7] Checking graphics card and PyTorch compatibility..." -ForegroundColor Green
+Write-Host "Graphics card: $($gpuProfile.Name); backend: $($gpuProfile.Vendor)" -ForegroundColor Cyan
 
 if (-not (Test-PythonCommand -Command $venvPython -Code $torchProbe)) {
     if ($gpuProfile.Vendor -eq "amd") {
-        Write-Host "AMD ROCm 7.2.1 ve uyumlu PyTorch kuruluyor..." -ForegroundColor Green
+        Write-Host "Installing AMD ROCm 7.2.1 and compatible PyTorch..." -ForegroundColor Green
         if (Get-Command winget -ErrorAction SilentlyContinue) {
             Install-WingetPackage -Id "Microsoft.VCRedist.2015+.x64" -DisplayName "Visual C++ Runtime"
         }
         Install-AmdRocmPyTorch -PythonCommand $venvPython
     } else {
         $torchChannel = Get-TorchChannel -GpuProfile $gpuProfile
-        Write-Host "Uyumlu NVIDIA CUDA destekli PyTorch kuruluyor..." -ForegroundColor Green
+        Write-Host "Installing compatible NVIDIA CUDA PyTorch..." -ForegroundColor Green
         & $venvPython -m pip install --upgrade --force-reinstall torch torchvision --index-url "https://download.pytorch.org/whl/$torchChannel"
         if ($LASTEXITCODE -ne 0 -and -not $gpuProfile.IsBlackwell) {
-            Write-Host "CUDA 12.6 paketi kurulamadi; CUDA 13.0 deneniyor..." -ForegroundColor Yellow
+            Write-Host "CUDA 12.6 package failed; trying CUDA 13.0..." -ForegroundColor Yellow
             $torchChannel = "cu130"
             & $venvPython -m pip install --upgrade --force-reinstall torch torchvision --index-url "https://download.pytorch.org/whl/$torchChannel"
         }
         if ($LASTEXITCODE -ne 0) {
-            throw "PyTorch kurulamadi. Ag baglantisini ve bos disk alanini kontrol edin."
+            throw "PyTorch could not be installed. Check the network connection and free disk space."
         }
     }
 }
 
-Write-Host "[4/7] PyTorch gercek GPU islemiyle dogrulaniyor..." -ForegroundColor Green
+Write-Host "[4/7] Validating PyTorch with a real GPU operation..." -ForegroundColor Green
 $torchProbeExit = Invoke-PythonCode -Command $venvPython -Code $torchProbe
 if ($torchProbeExit -ne 0) {
-    throw "PyTorch kurulmus gorunuyor ancak ekran kartinda calismiyor. Kurulum onarilamadi."
+    throw "PyTorch is installed but cannot run on the graphics card. Repair was unsuccessful."
 }
 
-Write-Host "[5/7] PDF to EPUB OCR ve bagimliliklar kuruluyor..." -ForegroundColor Green
+Write-Host "[5/7] Installing PDF to EPUB OCR and its dependencies..." -ForegroundColor Green
 & $venvPython -m pip install --upgrade $PSScriptRoot
-if ($LASTEXITCODE -ne 0) { throw "Proje bagimliliklari kurulamadi." }
+if ($LASTEXITCODE -ne 0) { throw "Application dependencies could not be installed." }
 
 # Dependencies can change PyTorch constraints. Verify import and a real kernel again.
 $torchProbeExit = Invoke-PythonCode -Command $venvPython -Code $torchProbe
 if ($torchProbeExit -ne 0) {
-    throw "Bagimlilik kurulumundan sonra PyTorch GPU dogrulamasi basarisiz oldu."
+    throw "PyTorch GPU validation failed after dependency installation."
 }
 
-Write-Host "[6/7] Pandoc, Poppler ve MOBI bilesenleri kontrol ediliyor..." -ForegroundColor Green
+Write-Host "[6/7] Checking Pandoc, Poppler, and MOBI components..." -ForegroundColor Green
 if (-not (Get-Command pandoc -ErrorAction SilentlyContinue)) {
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         Install-WingetPackage -Id "JohnMacFarlane.Pandoc" -DisplayName "Pandoc"
     } else {
-        throw "Pandoc bulunamadi. https://pandoc.org/installing.html adresinden kurun."
+        throw "Pandoc was not found. Install it from https://pandoc.org/installing.html."
     }
 }
 if (-not (Get-Command pdftoppm -ErrorAction SilentlyContinue)) {
     if (Get-Command winget -ErrorAction SilentlyContinue) {
         Install-WingetPackage -Id "oschwartz10612.Poppler" -DisplayName "Poppler"
     } else {
-        throw "Poppler bulunamadi. Poppler'i kurup bin klasorunu PATH'e ekleyin."
+        throw "Poppler was not found. Install it and add its bin directory to PATH."
     }
 }
 if (-not (Find-EbookConvert)) {
     if (Get-Command winget -ErrorAction SilentlyContinue) {
-        Install-WingetPackage -Id "calibre.calibre" -DisplayName "Calibre MOBI destegi"
+        Install-WingetPackage -Id "calibre.calibre" -DisplayName "Calibre MOBI support"
     } else {
-        throw "MOBI cikisi icin Calibre bulunamadi. https://calibre-ebook.com/download adresinden kurun."
+        throw "Calibre was not found for MOBI output. Install it from https://calibre-ebook.com/download."
     }
 }
 if (-not (Find-EbookConvert)) {
-    throw "Calibre kuruldu ancak ebook-convert bulunamadi. KURULUM.bat dosyasini yeniden acin."
+    throw "Calibre was installed but ebook-convert was not found. Run Setup again."
 }
 
-Write-Host "[7/7] Masaustu kisayolu hazirlaniyor..." -ForegroundColor Green
-try {
-    $shell = New-Object -ComObject WScript.Shell
-    $powerShellPath = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
-    $launchScript = Join-Path $PSScriptRoot "launch.ps1"
-    $guiLauncher = Join-Path $venvPath "Scripts\pdf-to-epub-gui.exe"
-    $desktop = [Environment]::GetFolderPath("Desktop")
-    $programs = [Environment]::GetFolderPath("Programs")
+Write-Host "[7/7] Finalizing the installation..." -ForegroundColor Green
+if (-not $SkipShortcuts) {
+    try {
+        $shell = New-Object -ComObject WScript.Shell
+        $powerShellPath = Join-Path $env:SystemRoot "System32\WindowsPowerShell\v1.0\powershell.exe"
+        $launchScript = Join-Path $PSScriptRoot "launch.ps1"
+        $guiLauncher = Join-Path $venvPath "Scripts\pdf-to-epub-gui.exe"
+        $desktop = [Environment]::GetFolderPath("Desktop")
+        $programs = [Environment]::GetFolderPath("Programs")
 
-    foreach ($shortcutFolder in @($desktop, $programs)) {
-        $shortcut = $shell.CreateShortcut((Join-Path $shortcutFolder "PDF to EPUB OCR.lnk"))
-        $shortcut.TargetPath = $powerShellPath
-        $shortcut.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$launchScript`""
-        $shortcut.WorkingDirectory = $PSScriptRoot
-        $shortcut.IconLocation = "$guiLauncher,0"
-        $shortcut.Description = "Taranmis PDF dosyalarini e-kitaba donustur"
-        $shortcut.Save()
+        foreach ($shortcutFolder in @($desktop, $programs)) {
+            $shortcut = $shell.CreateShortcut((Join-Path $shortcutFolder "PDF to EPUB OCR.lnk"))
+            $shortcut.TargetPath = $powerShellPath
+            $shortcut.Arguments = "-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$launchScript`""
+            $shortcut.WorkingDirectory = $PSScriptRoot
+            $shortcut.IconLocation = "$guiLauncher,0"
+            $shortcut.Description = "Convert scanned PDF files into reflowable e-books"
+            $shortcut.Save()
+        }
+    } catch {
+        Write-Host "Shortcuts could not be created; PDF-TO-EPUB.bat remains available." -ForegroundColor Yellow
     }
-} catch {
-    Write-Host "Uygulama kisayollari olusturulamadi; PDF-TO-EPUB.bat yine kullanilabilir." -ForegroundColor Yellow
 }
 
 Write-Host ""
-Write-Host "Kurulum tamamlandi." -ForegroundColor Green
-Write-Host "Python ortami: $venvPath" -ForegroundColor Green
-Write-Host "Bundan sonra masaustundeki 'PDF to EPUB OCR' kisayolunu acmaniz yeterli." -ForegroundColor Green
+Write-Host "$Operation completed successfully." -ForegroundColor Green
+Write-Host "Python environment: $venvPath" -ForegroundColor Green
+Write-Host "Open PDF to EPUB OCR from the desktop or Start menu." -ForegroundColor Green
+if ($LogPath) {
+    Stop-Transcript | Out-Null
+}

@@ -17,20 +17,25 @@ on your machine; no document text is sent to an external API.
 
 **Türkçe kullanım:** [Türkçe kolay kurulum ve kullanım rehberi](README_TR.md)
 
-## Easiest Windows setup (no command line)
+## Windows Setup (recommended, no command line)
 
-1. Download the **Windows easy-start ZIP** from the
-   [latest release](https://github.com/quby1845/pdf-to-epub/releases/latest) and extract it.
-2. Double-click **`KURULUM.bat`**. It installs the required components and creates desktop and
-   Start menu shortcuts. The first setup can take 10–30 minutes because the OCR stack is large.
-3. Open **PDF to EPUB OCR** from the desktop or Start menu, select **English** in the header if
-   needed, choose a PDF and EPUB, Markdown, or MOBI, confirm the book details, and click
-   **Convert**.
+1. Download the **`windows-setup.exe`** file from the
+   [latest release](https://github.com/quby1845/pdf-to-epub/releases/latest).
+2. Open Setup and follow the English installation wizard. It installs the required GPU runtime
+   and creates desktop and Start menu shortcuts. The first setup can take 10–30 minutes because
+   the OCR stack is large.
+3. Open **PDF to EPUB OCR**, choose a PDF and EPUB, Markdown, or MOBI, confirm the book details,
+   and click **Convert**.
 
 The desktop app keeps the document on your computer and saves the selected output beside the
-PDF by default. Once setup is complete, the app launches without a command prompt and provides
-a normal windowed workflow. NVIDIA CUDA works on Windows 10/11. The AMD ROCm beta path requires
-Windows 11, Python 3.12, and one of AMD's officially listed Radeon GPUs.
+PDF by default. The Windows **Maintenance Center** provides Repair, verified Check for Updates,
+and Uninstall controls. Updates are downloaded from GitHub Releases and must pass the published
+SHA-256 check before Setup can launch. Once setup is complete, the app launches without a command
+prompt and provides a normal windowed workflow. NVIDIA CUDA works on Windows 10/11. The AMD ROCm
+beta path requires Windows 11, Python 3.12, and one of AMD's officially listed Radeon GPUs.
+
+The legacy easy-start ZIP and `KURULUM.bat` remain available as a troubleshooting fallback, but
+new users should use Setup.exe.
 
 ## Why this project
 
@@ -166,7 +171,7 @@ metadata was prepared. Installation from PyPI will be documented after the first
 
 ## Usage
 
-For most Windows users, open the desktop shortcut created by `KURULUM.bat`. The graphical app
+For most Windows users, open the desktop shortcut created by Setup.exe. The graphical app
 provides file selection, book metadata, EPUB/Markdown/MOBI output choices, page processing modes,
 progress updates, and actionable error messages without requiring a terminal. The interface calls
 these choices **page processing modes**: all five use the same 6.5 GB OCR engine, while changing
@@ -177,8 +182,9 @@ rendering, and the first model-load/inference phase from pdf-craft's page events
 use the complete first PDF page as a dedicated cover. During page OCR, **Pause** stops work at the
 next safe checkpoint without losing completed pages; **Resume** continues the same conversion.
 The model remains loaded in VRAM while paused. The complete desktop interface, including dialogs,
-progress updates, model guidance, and error messages, can switch instantly between Turkish and
-English; the selected language is remembered for the next launch. A persistent light/dark theme
+progress updates, model guidance, and error messages, can switch instantly between English and
+Turkish. Fresh installations start in English and the selected language is remembered for later
+launches. A persistent light/dark theme
 toggle updates the complete interface, including native Windows chrome. The modern step-based
 layout uses bundled theme-aware icons, a visual file summary, and clear status feedback; no UI
 assets are fetched from the internet.
@@ -256,14 +262,14 @@ Run `pdf-to-epub-ocr --help` for the complete interface.
 | --- | --- |
 | `PyTorch is not installed` | Install the CUDA build selected for your driver and Python version. |
 | `CUDA is not available` | Check the NVIDIA driver and PyTorch CUDA build. CPU runs are not supported. |
-| `CUDA/ROCm is not available` | Rerun `KURULUM.bat` so the matching NVIDIA or AMD PyTorch build is installed. |
+| `CUDA/ROCm is not available` | Open Maintenance Center and select **Repair** so the matching NVIDIA or AMD PyTorch build is installed. |
 | Unsupported AMD GPU | Windows AMD beta only accepts models in AMD's ROCm 7.2.1 compatibility matrix. |
 | AMD ROCm setup fails | Confirm Windows 11, Python 3.12, Radeon driver 26.2.2, and a supported GPU. |
-| `[WinError 206]` during setup | Run the current `KURULUM.bat`; it uses a short managed environment and repairs partial installs. |
+| `[WinError 206]` during setup | Open Maintenance Center and select **Repair**; it uses a short managed environment and replaces partial installs. |
 | `[WinError 1314]` in the model cache | Upgrade to the current release; it falls back to ordinary copies without admin or Developer Mode. |
-| RTX 50 / `no kernel image` | Rerun `KURULUM.bat` so CUDA 13 PyTorch with `sm_120` kernels is selected. |
+| RTX 50 / `no kernel image` | Open Maintenance Center and select **Repair** so CUDA 13 PyTorch with `sm_120` kernels is selected. |
 | `Pandoc was not found` | Install Pandoc, then open a new terminal so `PATH` is refreshed. |
-| `Calibre ebook-convert was not found` | Rerun `KURULUM.bat` or install Calibre to enable MOBI output. |
+| `Calibre ebook-convert was not found` | Select **Repair** in Maintenance Center or install Calibre to enable MOBI output. |
 | Poppler/PDF rendering error | Install Poppler and ensure its `bin` directory is on `PATH`. |
 | 6 GB VRAM | The full model does not fit reliably; tiny/small only reduce per-page working memory. |
 | CUDA out of memory on 8 GB+ | Close GPU-heavy apps, then retry with `--ocr-size base` or `small`. |

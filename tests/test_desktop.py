@@ -200,14 +200,14 @@ def test_desktop_theme_preference_round_trip_and_safe_fallback(tmp_path: Path) -
 
 def test_desktop_language_preference_round_trip_and_safe_fallback(tmp_path: Path) -> None:
     settings = tmp_path / "settings" / "language.txt"
-    assert load_language_preference(settings) == "tr"
+    assert load_language_preference(settings) == "en"
 
     save_language_preference("en", settings)
     assert settings.read_text(encoding="utf-8") == "en\n"
     assert load_language_preference(settings) == "en"
 
     settings.write_text("unsupported", encoding="utf-8")
-    assert load_language_preference(settings) == "tr"
+    assert load_language_preference(settings) == "en"
 
 
 def test_desktop_english_labels_and_messages(tmp_path: Path) -> None:
@@ -233,10 +233,8 @@ def test_desktop_english_labels_and_messages(tmp_path: Path) -> None:
     assert model_labels("en")[DEFAULT_ENGLISH_MODEL_LABEL] == "large"
     assert output_format_labels("en")[DEFAULT_ENGLISH_OUTPUT_FORMAT_LABEL] == "epub"
     assert "recommended" in model_description(DEFAULT_ENGLISH_MODEL_LABEL, "en").casefold()
-    assert "Checking OCR model" in friendly_progress(
-        "Checking and downloading OCR models", "en"
-    )
-    assert "Run KURULUM.bat again" in friendly_error(
+    assert "Checking OCR model" in friendly_progress("Checking and downloading OCR models", "en")
+    assert "Maintenance Center" in friendly_error(
         RuntimeError("Pandoc was not found on PATH"), "en"
     )
 

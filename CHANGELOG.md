@@ -11,6 +11,17 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Add a persistent Turkish/English desktop language switcher covering the full interface,
   file dialogs, model/output labels, progress updates, and actionable error messages.
+- Add a real English Windows Setup.exe with per-user installation, Start menu integration,
+  Windows uninstall registration, and a modern wizard.
+- Add an English Maintenance Center for runtime repair, SHA-256-verified GitHub Release updates,
+  and uninstallation while preserving downloaded OCR models by default.
+
+### Changed
+
+- Make English the default desktop language for fresh installations while retaining the
+  persistent Turkish switch.
+- Keep the easy-start ZIP and batch launchers as legacy troubleshooting tools instead of the
+  primary Windows installation path.
 
 ## [0.9.1] - 2026-08-20
 
