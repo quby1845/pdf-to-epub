@@ -17,6 +17,7 @@ from pdf_to_epub.converter import (
     _pandoc_command,
     accelerator_backend,
     check_runtime,
+    cleanup_ocr_structure,
     cleanup_ocr_tables,
     convert_pdf,
     create_epub,
@@ -127,6 +128,12 @@ def test_fix_hyphenation_handles_soft_and_unicode_line_break_hyphens() -> None:
     assert count == 2
 
 
+def test_fix_hyphenation_handles_nonbreaking_space_but_not_paragraph_breaks() -> None:
+    fixed, count = fix_hyphenation("sö-\u00a0ğütler ama cümle-\n\nYeni paragraf", "tr")
+    assert fixed == "söğütler ama cümle-\n\nYeni paragraf"
+    assert count == 1
+
+
 def test_fix_hyphenation_file_requires_generated_markdown(tmp_path: Path) -> None:
     with pytest.raises(ConversionError, match="Markdown was not found"):
         fix_hyphenation_file(tmp_path / "missing.md")
@@ -163,6 +170,40 @@ def test_cleanup_ocr_tables_handles_html_and_preserves_real_tables() -> None:
     assert "incorrectly placed" in fixed
     assert real in fixed
     assert count == 1
+
+
+def test_cleanup_ocr_structure_splits_adjacent_quoted_dialogue() -> None:
+    text = "“Tekmeyi savurup ne tarafa uçuracağım?”“Bilmem ki…”\n"
+    fixed, dialogue_fixes, heading_fixes, hallucination_fixes = cleanup_ocr_structure(text)
+
+    assert fixed == "“Tekmeyi savurup ne tarafa uçuracağım?”\n\n“Bilmem ki…”\n"
+    assert (dialogue_fixes, heading_fixes, hallucination_fixes) == (1, 0, 0)
+
+
+def test_cleanup_ocr_structure_marks_explicit_chapters_without_touching_page_numbers() -> None:
+    text = "12\n\nBÖLÜM 3\n\nMetin.\n\nIV. Kısım\n"
+    fixed, dialogue_fixes, heading_fixes, hallucination_fixes = cleanup_ocr_structure(text)
+
+    assert fixed == "12\n\n## BÖLÜM 3\n\nMetin.\n\n## IV. Kısım\n"
+    assert (dialogue_fixes, heading_fixes, hallucination_fixes) == (0, 2, 0)
+
+
+def test_cleanup_ocr_structure_removes_repeating_sequential_number_hallucination() -> None:
+    first_run = " ".join(f"{number}." for number in range(1, 61))
+    second_run = " ".join(f"{number}." for number in range(1, 41))
+    text = f"Önceki gerçek paragraf.\n\n{first_run} {second_run}\n\nSonraki gerçek paragraf."
+    fixed, dialogue_fixes, heading_fixes, hallucination_fixes = cleanup_ocr_structure(text)
+
+    assert fixed == "Önceki gerçek paragraf.\n\nSonraki gerçek paragraf."
+    assert (dialogue_fixes, heading_fixes, hallucination_fixes) == (0, 0, 1)
+
+
+def test_cleanup_ocr_structure_preserves_short_numeric_content_and_real_lists() -> None:
+    text = "1. 2. 3. 4. 5.\n\n1. Birinci madde\n2. İkinci madde"
+    fixed, dialogue_fixes, heading_fixes, hallucination_fixes = cleanup_ocr_structure(text)
+
+    assert fixed == text
+    assert (dialogue_fixes, heading_fixes, hallucination_fixes) == (0, 0, 0)
 
 
 def test_remaining_time_estimate_waits_for_three_pages() -> None:

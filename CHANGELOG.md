@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.11.2] - 2026-08-24
+
+### Fixed
+
+- Split adjacent quoted dialogue into separate paragraphs when OCR joins two speakers, such as
+  `?”“`, without rewriting ordinary quotation marks.
+- Remove long, near-sequential number-only hallucinations produced by OCR on blank pages while
+  preserving short numeric content and real numbered lists.
+- Preserve explicit Turkish and English chapter markers (`BÖLÜM`, `Kısım`, `Chapter`, `Part`,
+  and `Book`) as Markdown headings so EPUB readers retain visible section boundaries.
+- Repair line-wrap hyphenation containing non-breaking spaces and avoid joining words across a
+  true blank paragraph boundary.
+
 ## [0.11.1] - 2026-08-24
 
 ### Fixed

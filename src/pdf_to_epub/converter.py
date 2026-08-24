@@ -29,6 +29,14 @@ _OUTPUT_EXTENSIONS = {"epub": ".epub", "markdown": ".md", "mobi": ".mobi"}
 _PIPE_TABLE_PATTERN = re.compile(r"(?:^[ \t]*\|.*\|[ \t]*$\n?){2,}", re.MULTILINE)
 _HTML_TABLE_PATTERN = re.compile(r"<table\b[^>]*>.*?</table>", re.IGNORECASE | re.DOTALL)
 _HTML_CELL_PATTERN = re.compile(r"<(?:td|th)\b[^>]*>(.*?)</(?:td|th)>", re.IGNORECASE | re.DOTALL)
+_DIALOGUE_BOUNDARY_PATTERN = re.compile(r'(?P<closing>[.!?…]["”»])[ \t]*(?P<opening>["“«])')
+_EXPLICIT_CHAPTER_HEADING_PATTERN = re.compile(
+    r"(?:"
+    r"(?:bölüm|kısım|kitap|chapter|part|book)\s+(?:\d{1,4}|[ivxlcdm]+)"
+    r"|(?:\d{1,4}|[ivxlcdm]+)[.\-:]?\s+(?:bölüm|kısım|kitap|chapter|part|book)"
+    r")",
+    re.IGNORECASE,
+)
 
 _LETTER = r"[^\W\d_]"
 _VISIBLE_HYPHENS = r"\-\u2010\u2011"
@@ -300,10 +308,10 @@ def fix_hyphenation(text: str, language: str = "en") -> tuple[str, int]:
     fixed, soft_hyphen_count = re.subn(soft_hyphen_pattern, "", text)
     corrections += soft_hyphen_count
 
-    line_break_pattern = rf"({_LETTER})[{_VISIBLE_HYPHENS}][ \t]*\n\s*({_LETTER})"
+    line_break_pattern = rf"({_LETTER})[{_VISIBLE_HYPHENS}][^\S\r\n]*\r?\n[^\S\r\n]*({_LETTER})"
     fixed = re.sub(line_break_pattern, replace_line_break, fixed)
 
-    spaced_break_pattern = rf"({_LETTER})[{_VISIBLE_HYPHENS}][ \t]+({_LETTER})"
+    spaced_break_pattern = rf"({_LETTER})[{_VISIBLE_HYPHENS}][^\S\r\n]+({_LETTER})"
     fixed = re.sub(spaced_break_pattern, replace_inline_break, fixed)
 
     if language.casefold().split("-", maxsplit=1)[0] == "tr":
@@ -407,6 +415,68 @@ def cleanup_ocr_tables_file(markdown_path: Path) -> int:
     fixed, count = cleanup_ocr_tables(original)
     markdown_path.write_text(fixed, encoding="utf-8")
     return count
+
+
+def _is_hallucinated_number_sequence(block: str) -> bool:
+    """Recognize long, near-sequential number-only output hallucinated on blank pages."""
+    if re.sub(r"[\d\s.,;:(){}\[\]\-–—]+", "", block):
+        return False
+    numbers = [int(value) for value in re.findall(r"\d{1,7}", block)]
+    if len(numbers) < 25:
+        return False
+    valid_transitions = sum(
+        current == previous + 1 or (current == 1 and previous >= 20)
+        for previous, current in zip(numbers, numbers[1:], strict=False)
+    )
+    return valid_transitions / (len(numbers) - 1) >= 0.9
+
+
+def cleanup_ocr_structure(text: str) -> tuple[str, int, int, int]:
+    """Repair conservative paragraph/heading issues and discard numeric OCR hallucinations."""
+    dialogue_fixes = 0
+    heading_fixes = 0
+    hallucination_fixes = 0
+
+    def split_dialogue(match: re.Match[str]) -> str:
+        nonlocal dialogue_fixes
+        dialogue_fixes += 1
+        return f"{match.group('closing')}\n\n{match.group('opening')}"
+
+    fixed = _DIALOGUE_BOUNDARY_PATTERN.sub(split_dialogue, text)
+    parts = re.split(r"(\n{2,})", fixed)
+    for index in range(0, len(parts), 2):
+        block = parts[index]
+        stripped = block.strip()
+        if not stripped:
+            continue
+        if _is_hallucinated_number_sequence(stripped):
+            parts[index] = ""
+            hallucination_fixes += 1
+            continue
+        if (
+            "\n" not in stripped
+            and not stripped.startswith("#")
+            and _EXPLICIT_CHAPTER_HEADING_PATTERN.fullmatch(stripped)
+        ):
+            leading = block[: len(block) - len(block.lstrip())]
+            trailing = block[len(block.rstrip()) :]
+            parts[index] = f"{leading}## {stripped}{trailing}"
+            heading_fixes += 1
+
+    cleaned = "".join(parts)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip("\n")
+    if text.endswith("\n"):
+        cleaned += "\n"
+    return cleaned, dialogue_fixes, heading_fixes, hallucination_fixes
+
+
+def cleanup_ocr_structure_file(markdown_path: Path) -> tuple[int, int, int]:
+    if not markdown_path.is_file():
+        raise ConversionError(f"Generated Markdown was not found: {markdown_path}")
+    original = markdown_path.read_text(encoding="utf-8")
+    fixed, dialogue_fixes, heading_fixes, hallucination_fixes = cleanup_ocr_structure(original)
+    markdown_path.write_text(fixed, encoding="utf-8")
+    return dialogue_fixes, heading_fixes, hallucination_fixes
 
 
 def estimate_remaining_seconds(
@@ -789,7 +859,18 @@ def convert_pdf(
         report(ConversionProgress("Repairing line-end hyphenation", "cleanup"))
         fixes = fix_hyphenation_file(markdown_path, language=options.metadata.language)
         table_fixes = cleanup_ocr_tables_file(markdown_path)
-        logger.info("OCR cleanup: hyphenation_fixes=%s table_fixes=%s", fixes, table_fixes)
+        dialogue_fixes, heading_fixes, hallucination_fixes = cleanup_ocr_structure_file(
+            markdown_path
+        )
+        logger.info(
+            "OCR cleanup: hyphenation_fixes=%s table_fixes=%s dialogue_fixes=%s "
+            "heading_fixes=%s hallucination_blocks_removed=%s",
+            fixes,
+            table_fixes,
+            dialogue_fixes,
+            heading_fixes,
+            hallucination_fixes,
+        )
         ebook_cover = cover_path if cover_path.is_file() else None
         if options.output_format in {"epub", "mobi"}:
             report(ConversionProgress("Embedding full-page cover", "epub"))
