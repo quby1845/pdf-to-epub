@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] - 2026-08-24
+
+### Added
+
+- Add the official **PDF to EPUB Receiver** KOReader companion plugin, maintained and released
+  from this repository instead of requiring users to install a third-party plugin.
+- Build architecture-specific KOReader packages for current ARM devices, ARM64 readers, and
+  legacy Kindle hardware.
+- Add automatic receiver update support through this project's GitHub releases, deterministic
+  plugin packaging, license attribution, and regression tests for the installable ZIP layout.
+
+### Changed
+
+- Point the desktop plugin button and English/Turkish setup instructions to the project's own
+  receiver packages while retaining LocalSend v2.2 protocol compatibility.
+
 ## [0.11.2] - 2026-08-24
 
 ### Fixed

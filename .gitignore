@@ -17,6 +17,7 @@ env/
 build/
 dist/
 *.egg-info/
+.reference/
 
 # Runtime data and user documents
 input/

@@ -44,6 +44,53 @@ jobs:
       - run: python -c "import pdf_to_epub; print(pdf_to_epub.__version__)"
       - run: python scripts/build_windows_bundle.py --output build/windows-easy-start.zip
 
+  koreader-plugin:
+    name: KOReader receiver
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: koreader-plugin/go.mod
+          cache-dependency-path: koreader-plugin/go.sum
+      - uses: extractions/setup-just@v4
+        with:
+          just-version: 1.57.0
+      - name: Test receiver in the KOReader runtime
+        working-directory: koreader-plugin
+        run: just test
+      - name: Cross-compile receiver binaries
+        working-directory: koreader-plugin
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/bin
+          compat_overlay="$(go run ./tools/armcompat -output-dir build/arm-runtime-compat)"
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=5 \
+            go build -overlay="$compat_overlay" \
+            -ldflags="-s -w -X localsend-cli/cmd.buildArchTag=arm-legacy" \
+            -o build/bin/localsend-arm-legacy .
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
+            go build -overlay="$compat_overlay" \
+            -ldflags="-s -w -X localsend-cli/cmd.buildArchTag=armv7" \
+            -o build/bin/localsend-armv7 .
+          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
+            go build -ldflags="-s -w -X localsend-cli/cmd.buildArchTag=arm64" \
+            -o build/bin/localsend-arm64 .
+      - name: Validate installable package layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          for arch in arm-legacy armv7 arm64; do
+            output="build/pdf-to-epub-receiver-koplugin-${arch}.zip"
+            python scripts/build_koreader_plugin.py \
+              --source koreader-plugin \
+              --binary "koreader-plugin/build/bin/localsend-${arch}" \
+              --arch "$arch" \
+              --output "$output"
+            unzip -tq "$output"
+          done
+
   windows-desktop:
     name: Windows desktop launcher
     runs-on: windows-latest
@@ -86,9 +133,9 @@ jobs:
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path -LiteralPath $iscc)) { throw "Inno Setup compiler was not found." }
           New-Item -ItemType Directory -Path build\installer -Force | Out-Null
-          & $iscc "/DAppVersion=0.11.2" "/DSourceRoot=$PWD" "/DOutputDirectory=$PWD\build\installer" .\installer\pdf-to-epub.iss
+          & $iscc "/DAppVersion=0.12.0" "/DSourceRoot=$PWD" "/DOutputDirectory=$PWD\build\installer" .\installer\pdf-to-epub.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
-          if (-not (Test-Path -LiteralPath .\build\installer\pdf-to-epub-ocr-v0.11.2-windows-setup.exe)) { throw "Setup.exe was not created." }
+          if (-not (Test-Path -LiteralPath .\build\installer\pdf-to-epub-ocr-v0.12.0-windows-setup.exe)) { throw "Setup.exe was not created." }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

@@ -183,14 +183,18 @@ içindir; duraklatma sırasında VRAM boşaltılmaz.
 ## Oluşan kitabı doğrudan KOReader'a gönderme
 
 EPUB veya MOBI dönüşümü tamamlandığında sonuç satırında **KOReader'a gönder** düğmesi görünür.
-Aktarım açık LocalSend 2.2 protokolüyle aynı yerel ağ içinde doğrudan bilgisayardan e-okuyucuya
-yapılır; kitap bir bulut sunucusuna yüklenmez.
+Program ve kendi **PDF to EPUB Receiver** eklentimiz açık LocalSend 2.2 protokolünü kullanır.
+Aktarım aynı yerel ağ içinde doğrudan bilgisayardan e-okuyucuya yapılır; kitap bir bulut
+sunucusuna yüklenmez.
 
-1. E-okuyucunuza [KOReader LocalSend eklentisini](https://github.com/kaikozlov/localsend.koplugin)
-   kurup KOReader'ı yeniden başlatın.
-2. KOReader'da **Menü → Ağ → LocalSend** bölümünü açın, kayıt klasörünü seçin ve sunucuyu
-   başlatın. Bilgisayar ile e-okuyucu aynı Wi-Fi ağında olmalıdır.
-3. Bilgisayarda **KOReader'a gönder** düğmesine basın, bulunan cihazı seçin ve KOReader ekranındaki
+1. [Son sürüm](https://github.com/quby1845/pdf-to-epub/releases/latest) sayfasından cihazınıza
+   uygun eklenti ZIP'ini indirin: güncel Kindle/Kobo/PocketBook/reMarkable 2 için `armv7`, ARM64
+   cihazlar için `arm64`, Kindle 3/DX ve eski ARM cihazlar için `arm-legacy`.
+2. ZIP içindeki `pdf_to_epub_receiver.koplugin` klasörünü KOReader'ın `plugins` klasörüne çıkarıp
+   KOReader'ı yeniden başlatın.
+3. KOReader'da **Menü → Ağ → PDF to EPUB Receiver** bölümünü açın, kayıt klasörünü seçin ve
+   sunucuyu başlatın. Bilgisayar ile e-okuyucu aynı Wi-Fi ağında olmalıdır.
+4. Bilgisayarda **KOReader'a gönder** düğmesine basın, bulunan cihazı seçin ve KOReader ekranındaki
    isteği onaylayın. KOReader PIN istiyorsa isteğe bağlı PIN alanına girin.
 
 Misafir ağı, VPN veya modem ayarı otomatik keşfi engellerse KOReader cihazının IP adresini

@@ -87,26 +87,28 @@ _TEXT: dict[str, dict[UiLanguage, str]] = {
     "koreader_title": {"tr": "KOReader'a gönder", "en": "Send to KOReader"},
     "koreader_body": {
         "tr": (
-            "KOReader'da LocalSend sunucusunu başlatın. Aynı Wi-Fi ağındaki cihazlar "
+            "KOReader'da PDF to EPUB Receiver eklentisini başlatın. Aynı Wi-Fi ağındaki cihazlar "
             "otomatik olarak burada görünecektir."
         ),
         "en": (
-            "Start the LocalSend server in KOReader. Devices on the same Wi-Fi network "
+            "Start PDF to EPUB Receiver in KOReader. Devices on the same Wi-Fi network "
             "will appear here automatically."
         ),
     },
     "koreader_devices": {"tr": "Bulunan cihazlar", "en": "Discovered devices"},
     "koreader_scanning": {"tr": "Cihazlar aranıyor…", "en": "Looking for devices…"},
     "koreader_none": {
-        "tr": "Henüz cihaz bulunamadı. KOReader'da LocalSend'i başlatıp yeniden tarayın.",
-        "en": "No device found yet. Start LocalSend in KOReader, then scan again.",
+        "tr": (
+            "Henüz cihaz bulunamadı. KOReader'da PDF to EPUB Receiver'ı başlatıp yeniden tarayın."
+        ),
+        "en": "No device found yet. Start PDF to EPUB Receiver in KOReader, then scan again.",
     },
     "koreader_found": {"tr": "{count} cihaz bulundu.", "en": "Found {count} device(s)."},
     "koreader_manual": {"tr": "Elle IP adresi", "en": "Manual IP address"},
     "koreader_manual_hint": {"tr": "örn. 192.168.1.50", "en": "e.g. 192.168.1.50"},
     "koreader_pin": {"tr": "PIN (isteğe bağlı)", "en": "PIN (optional)"},
     "koreader_rescan": {"tr": "Yeniden tara", "en": "Scan again"},
-    "koreader_plugin_help": {"tr": "Eklenti kurulumu", "en": "Plugin setup"},
+    "koreader_plugin_help": {"tr": "Eklentiyi indir", "en": "Download plugin"},
     "koreader_send": {"tr": "Dosyayı gönder", "en": "Send file"},
     "koreader_close": {"tr": "Kapat", "en": "Close"},
     "koreader_select": {

@@ -141,7 +141,7 @@ THEMES = {
 class KOReaderSendDialog:
     """Modal device picker and transfer progress window."""
 
-    PLUGIN_URL = "https://github.com/kaikozlov/localsend.koplugin"
+    PLUGIN_URL = "https://github.com/quby1845/pdf-to-epub/releases/latest"
 
     def __init__(self, app: PdfToEpubApp, file_path: Path) -> None:
         self.app = app

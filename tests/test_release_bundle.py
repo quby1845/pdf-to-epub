@@ -136,7 +136,12 @@ def test_release_workflow_builds_and_publishes_setup_exe() -> None:
     assert "unix-bundles:" in workflow
     assert "build_unix_bundle.py --platform linux" in workflow
     assert "build_unix_bundle.py --platform macos" in workflow
-    assert "needs: [build, windows-bundle, windows-installer, unix-bundles]" in workflow
+    assert (
+        "needs: [build, windows-bundle, windows-installer, unix-bundles, koreader-plugin]"
+        in workflow
+    )
+    assert "koreader-plugin:" in workflow
+    assert "pdf-to-epub-receiver-koplugin-${arch}.zip" in workflow
     assert "gh release view" in workflow
     assert "gh release upload" in workflow
     assert "--clobber" in workflow

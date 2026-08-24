@@ -86,7 +86,7 @@ settings. PDF to EPUB OCR provides a reproducible command-line workflow for scan
 - repair of common line-end hyphenation artifacts;
 - conservative cleanup of prose misclassified as mostly empty `None` tables;
 - EPUB, editable Markdown, and legacy MOBI outputs;
-- one-click EPUB/MOBI delivery to KOReader over the local network with LocalSend;
+- one-click EPUB/MOBI delivery to KOReader with the project's own receiver plugin;
 - configurable language, metadata, OCR model, DPI, and stylesheet;
 - a non-interactive CLI suitable for repeatable conversions.
 
@@ -253,14 +253,18 @@ assets are fetched from the internet.
 ### Send the finished book directly to KOReader
 
 After an EPUB or MOBI conversion succeeds, select **Send to KOReader** in the result bar. The app
-uses the open LocalSend v2.2 LAN protocol; the book travels directly from the computer to the
-e-reader and is not uploaded to a cloud relay.
+and its official **PDF to EPUB Receiver** plugin use the open LocalSend v2.2 LAN protocol; the
+book travels directly from the computer to the e-reader and is not uploaded to a cloud relay.
 
-1. Install [LocalSend for KOReader](https://github.com/kaikozlov/localsend.koplugin) in the
-   e-reader's KOReader plugins directory, then restart KOReader.
-2. In KOReader, open **Menu → Network → LocalSend**, select a destination directory, and start
-   the server. Keep the e-reader and computer on the same Wi-Fi network.
-3. In PDF to EPUB OCR, select **Send to KOReader**. Choose the discovered device and approve the
+1. Download the receiver ZIP matching your e-reader from the
+   [latest release](https://github.com/quby1845/pdf-to-epub/releases/latest): `armv7` for current
+   Kindle/Kobo/PocketBook/reMarkable 2 devices, `arm64` for ARM64 devices such as reMarkable
+   Paper Pro, or `arm-legacy` for Kindle 3/DX and older ARM devices.
+2. Extract `pdf_to_epub_receiver.koplugin` into KOReader's `plugins` directory and restart
+   KOReader.
+3. In KOReader, open **Menu → Network → PDF to EPUB Receiver**, select a destination directory,
+   and start the server. Keep the e-reader and computer on the same Wi-Fi network.
+4. In PDF to EPUB OCR, select **Send to KOReader**. Choose the discovered device and approve the
    request on the e-reader. Enter its PIN in the optional PIN box if KOReader requires one.
 
 If multicast discovery is blocked by a guest network, VPN, or router setting, enter the
