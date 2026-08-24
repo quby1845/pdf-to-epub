@@ -126,6 +126,9 @@ def test_release_workflow_builds_and_publishes_setup_exe() -> None:
     assert "build_unix_bundle.py --platform linux" in workflow
     assert "build_unix_bundle.py --platform macos" in workflow
     assert "needs: [build, windows-bundle, windows-installer, unix-bundles]" in workflow
+    assert "gh release view" in workflow
+    assert "gh release upload" in workflow
+    assert "--clobber" in workflow
 
 
 def test_unix_bundle_preserves_executable_installers(tmp_path: Path) -> None:
