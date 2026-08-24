@@ -129,7 +129,7 @@ _pot:
     xgettext --language=Lua --from-code=UTF-8 \
       --keyword=_ --keyword=deps._ --keyword=N_:1,2 --keyword=deps.N_:1,2 \
       --add-comments=@translators \
-      --package-name=localsend --package-version="$version" \
+      --package-name="PDF to EPUB Receiver" --package-version="$version" \
       --msgid-bugs-address=https://github.com/quby1845/pdf-to-epub/issues \
       -o lua/locale/localsend.pot lua/*.lua
     echo "Wrote lua/locale/localsend.pot"
@@ -211,7 +211,7 @@ _pot-check:
     xgettext --language=Lua --from-code=UTF-8 \
       --keyword=_ --keyword=deps._ --keyword=N_:1,2 --keyword=deps.N_:1,2 \
       --add-comments=@translators \
-      --package-name=localsend --package-version="$version" \
+      --package-name="PDF to EPUB Receiver" --package-version="$version" \
       --msgid-bugs-address=https://github.com/quby1845/pdf-to-epub/issues \
       -o "$tmp/localsend.pot" lua/*.lua
 

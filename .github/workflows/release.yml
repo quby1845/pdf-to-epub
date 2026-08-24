@@ -94,47 +94,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: extractions/setup-just@v4
         with:
-          go-version-file: koreader-plugin/go.mod
-          cache-dependency-path: koreader-plugin/go.sum
+          just-version: 1.57.0
       - name: Verify receiver version matches the release tag
         shell: bash
         run: |
           plugin_version="$(sed -n 's/.*version = "\([^"]*\)".*/\1/p' koreader-plugin/lua/_meta.lua)"
           test "$plugin_version" = "$GITHUB_REF_NAME"
-      - name: Test and cross-compile receiver
+      - name: Test, build, and audit receiver
         working-directory: koreader-plugin
-        shell: bash
         run: |
-          set -euo pipefail
-          go test ./...
-          mkdir -p build/bin
-          compat_overlay="$(go run ./tools/armcompat -output-dir build/arm-runtime-compat)"
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=5 \
-            go build -overlay="$compat_overlay" \
-            -ldflags="-s -w -X localsend-cli/cmd.buildArchTag=arm-legacy" \
-            -o build/bin/localsend-arm-legacy .
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 \
-            go build -overlay="$compat_overlay" \
-            -ldflags="-s -w -X localsend-cli/cmd.buildArchTag=armv7" \
-            -o build/bin/localsend-armv7 .
-          CGO_ENABLED=0 GOOS=linux GOARCH=arm64 \
-            go build -ldflags="-s -w -X localsend-cli/cmd.buildArchTag=arm64" \
-            -o build/bin/localsend-arm64 .
+          just test
+          just package
       - name: Package receiver plugins
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p release-assets
           for arch in arm-legacy armv7 arm64; do
-            output="release-assets/pdf-to-epub-receiver-koplugin-${arch}.zip"
-            python scripts/build_koreader_plugin.py \
-              --source koreader-plugin \
-              --binary "koreader-plugin/build/bin/localsend-${arch}" \
-              --arch "$arch" \
-              --output "$output"
+            output="koreader-plugin/build/pdf-to-epub-receiver-koplugin-${arch}.zip"
+            test -f "$output"
             unzip -tq "$output"
+            cp "$output" release-assets/
           done
       - uses: actions/upload-artifact@v4
         with:
