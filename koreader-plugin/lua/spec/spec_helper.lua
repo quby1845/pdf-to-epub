@@ -453,7 +453,7 @@ function M.load_via_filemanager()
     local fm = FileManager:new({ dimen = Screen:getSize(), root_path = DataStorage:getDataDir() })
     UIManager:show(fm)
     fastforward_ui_events()
-    return PluginLoader:getPluginInstance("localsend"), fm
+    return PluginLoader:getPluginInstance("pdf_to_epub_receiver"), fm
 end
 
 function M.close_filemanager(fm)

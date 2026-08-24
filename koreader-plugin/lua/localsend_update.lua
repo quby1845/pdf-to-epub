@@ -10,7 +10,7 @@ local M = {}
 M.GITHUB_RELEASE_URL = "https://api.github.com/repos/quby1845/pdf-to-epub/releases/latest"
 M.REINSTALL_MARKER_FILE = ".reinstall_required"
 M.TMP_TELEMETRY_PATTERN = "fm-out-*"
-M.CACHE_SUBDIR = "pdf-to-epub-receiver"
+M.CACHE_SUBDIR = "localsend"
 M.MAX_CURL_ERROR_BYTES = 500
 
 -- Dependencies container (set via M.init)
@@ -314,7 +314,7 @@ function M.doPerformUpdate(instance, download_url, asset_name, new_version, plug
 
     -- Now create fresh cache directory
     local update_cache = getUpdateCacheDir()
-    local tmp_zip = update_cache .. "/pdf_to_epub_receiver_update.zip"
+    local tmp_zip = update_cache .. "/localsend_update.zip"
     local tmp_extract = update_cache .. "/extract"
     local download_error_file = update_cache .. "/download.error"
 
