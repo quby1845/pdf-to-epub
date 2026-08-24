@@ -8,16 +8,19 @@ built, versioned, documented, and released from the PDF to EPUB OCR repository.
 
 ## Install
 
-1. Download the ZIP matching the e-reader from the latest PDF to EPUB OCR release:
-   - `armv7`: current Kindle, Kobo, PocketBook, and reMarkable 2 devices.
-   - `arm64`: reMarkable Paper Pro and other ARM64 KOReader devices.
-   - `arm-legacy`: Kindle 3, Kindle DX, and older ARM devices.
-2. Extract `pdf_to_epub_receiver.koplugin` into KOReader's `plugins` directory.
-3. Restart KOReader.
-4. Open **Menu → Network → PDF to EPUB Receiver**, choose the save directory, and select
-   **Start server**.
-5. Keep the e-reader and computer on the same Wi-Fi network, then use **Send to KOReader** in
-   PDF to EPUB OCR.
+1. Download the matching ZIP from the latest PDF to EPUB OCR release: `armv7` for current
+   Kindle/Kobo/PocketBook/reMarkable 2 devices, `arm64` for ARM64 readers such as reMarkable
+   Paper Pro, or `arm-legacy` for Kindle 3/DX and older ARM devices.
+2. Close KOReader. Extract `pdf_to_epub_receiver.koplugin` into KOReader's `plugins` directory
+   (`koreader/plugins` on Kindle or `.adds/koreader/plugins` on Kobo).
+3. Confirm the final path contains `plugins/pdf_to_epub_receiver.koplugin/main.lua`, then restart
+   KOReader completely.
+4. Open **Menu → Network → PDF to EPUB Receiver** and choose the save directory.
+5. Under **Settings**, keep **Allowed extensions (all)** and **Use HTTPS** enabled. Optionally set
+   a PIN, enable **Start with KOReader**, or configure file type routing.
+6. Return to the receiver menu and select **Start server**.
+7. Keep the reader and computer on the same Wi-Fi network. Use **Send a file** for any existing
+   file or **Send to KOReader** after a conversion, then approve the request on KOReader.
 
 If automatic discovery is blocked by a VPN, guest network, or router setting, enter the
 e-reader's IP address manually in the desktop app.

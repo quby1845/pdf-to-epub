@@ -188,15 +188,50 @@ gönderilebilir. Program ve kendi **PDF to EPUB Receiver** eklentimiz açık Loc
 protokolünü kullanır. Aktarım aynı yerel ağ içinde doğrudan bilgisayardan e-okuyucuya yapılır;
 dosya bir bulut sunucusuna yüklenmez.
 
-1. [Son sürüm](https://github.com/quby1845/pdf-to-epub/releases/latest) sayfasından cihazınıza
-   uygun eklenti ZIP'ini indirin: güncel Kindle/Kobo/PocketBook/reMarkable 2 için `armv7`, ARM64
-   cihazlar için `arm64`, Kindle 3/DX ve eski ARM cihazlar için `arm-legacy`.
-2. ZIP içindeki `pdf_to_epub_receiver.koplugin` klasörünü KOReader'ın `plugins` klasörüne çıkarıp
-   KOReader'ı yeniden başlatın.
-3. KOReader'da **Menü → Ağ → PDF to EPUB Receiver** bölümünü açın, kayıt klasörünü seçin ve
-   sunucuyu başlatın. Bilgisayar ile e-okuyucu aynı Wi-Fi ağında olmalıdır.
-4. Bilgisayarda **Dosya gönder** veya **KOReader'a gönder** düğmesine basın, bulunan cihazı seçin
-   ve KOReader ekranındaki isteği onaylayın. KOReader PIN istiyorsa isteğe bağlı PIN alanına girin.
+### 1. Doğru eklenti paketini seçin
+
+[Son sürüm](https://github.com/quby1845/pdf-to-epub/releases/latest) sayfasından cihazınıza uygun
+ZIP'i indirin:
+
+| Paket | Genellikle uygun cihazlar |
+| --- | --- |
+| `pdf-to-epub-receiver-koplugin-armv7.zip` | Güncel Kindle, Kobo, PocketBook ve reMarkable 2 cihazları |
+| `pdf-to-epub-receiver-koplugin-arm64.zip` | reMarkable Paper Pro ve diğer ARM64 KOReader cihazları |
+| `pdf-to-epub-receiver-koplugin-arm-legacy.zip` | Kindle 3/DX ve eski ARM cihazları |
+
+### 2. KOReader'a kurun
+
+1. KOReader'ı kapatıp e-okuyucuyu bilgisayara bağlayın.
+2. KOReader'ın `plugins` klasörünü açın. Yaygın konumlar Kindle'da `koreader/plugins`, Kobo'da
+   `.adds/koreader/plugins` şeklindedir. Klasör yoksa `plugins` adıyla oluşturabilirsiniz.
+3. ZIP'i bu klasöre çıkarın. Son konumda
+   `plugins/pdf_to_epub_receiver.koplugin/main.lua` bulunmalıdır; arada fazladan bir ZIP klasörü
+   kalmamalıdır.
+4. Cihazı güvenle çıkarın ve KOReader'ı tamamen yeniden başlatın.
+
+### 3. İlk ayarları yapın
+
+KOReader'da **Menü → Ağ → PDF to EPUB Receiver** bölümünü açın. Sunucu kapalıyken:
+
+- **Save directory (kayıt klasörü):** Gelen dosyaların kaydedileceği klasörü seçin.
+- **Settings → Allowed extensions (all):** Her tür dosyayı göndermek için bu şekilde bırakın.
+- **Settings → Use HTTPS:** Yerel aktarımın şifreli olması için açık bırakın.
+- **Settings → PIN code:** Zorunlu değildir; ortak Wi-Fi ağlarında önerilir. Belirlediğiniz PIN'i
+  bilgisayardaki gönderim penceresine de yazın.
+- **Settings → Start with KOReader:** İsterseniz açın; KOReader ve Wi-Fi hazır olduğunda alıcı
+  otomatik başlar.
+- **Settings → File type routing:** İsterseniz EPUB, PDF ve diğer uzantıları farklı
+  klasörlere yönlendirebilirsiniz.
+
+Ana eklenti menüsüne dönüp **Start server** seçeneğine basın. Hazır olduğunda menüde
+**PDF to EPUB Receiver (running)** ifadesi görünür.
+
+### 4. Dosyayı gönderin
+
+Bilgisayar ile e-okuyucu aynı Wi-Fi ağında olmalıdır. Uygulamada herhangi bir mevcut dosya için
+**Dosya gönder**, tamamlanan bir dönüşüm için **KOReader'a gönder** düğmesini kullanın. Bulunan
+cihazı seçin, ayarladıysanız PIN'i girin, **Dosyayı gönder** düğmesine basın ve KOReader ekranındaki
+isteği onaylayın.
 
 Misafir ağı, VPN veya modem ayarı otomatik keşfi engellerse KOReader cihazının IP adresini
 (`192.168.1.50` gibi) elle girebilirsiniz. Varsayılan ayarda her tür normal dosya gönderilebilir;

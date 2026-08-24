@@ -257,17 +257,50 @@ finished conversion can also be sent with **Send to KOReader** in the result bar
 official **PDF to EPUB Receiver** plugin use the open LocalSend v2.2 LAN protocol; data travels
 directly from the computer to the e-reader and is not uploaded to a cloud relay.
 
-1. Download the receiver ZIP matching your e-reader from the
-   [latest release](https://github.com/quby1845/pdf-to-epub/releases/latest): `armv7` for current
-   Kindle/Kobo/PocketBook/reMarkable 2 devices, `arm64` for ARM64 devices such as reMarkable
-   Paper Pro, or `arm-legacy` for Kindle 3/DX and older ARM devices.
-2. Extract `pdf_to_epub_receiver.koplugin` into KOReader's `plugins` directory and restart
-   KOReader.
-3. In KOReader, open **Menu → Network → PDF to EPUB Receiver**, select a destination directory,
-   and start the server. Keep the e-reader and computer on the same Wi-Fi network.
-4. In PDF to EPUB OCR, select **Send a file** or **Send to KOReader**. Choose the discovered
-   device and approve the request on the e-reader. Enter its PIN in the optional PIN box if
-   KOReader requires one.
+#### 1. Choose the receiver package
+
+Download the matching ZIP from the
+[latest release](https://github.com/quby1845/pdf-to-epub/releases/latest):
+
+| Package | Typical devices |
+| --- | --- |
+| `pdf-to-epub-receiver-koplugin-armv7.zip` | Current Kindle, Kobo, PocketBook, and reMarkable 2 devices |
+| `pdf-to-epub-receiver-koplugin-arm64.zip` | reMarkable Paper Pro and other ARM64 KOReader devices |
+| `pdf-to-epub-receiver-koplugin-arm-legacy.zip` | Kindle 3/DX and older ARM devices |
+
+#### 2. Install it in KOReader
+
+1. Close KOReader and connect the reader to the computer.
+2. Open KOReader's `plugins` directory. Common locations are
+   `koreader/plugins` on Kindle and `.adds/koreader/plugins` on Kobo. Create the `plugins`
+   directory if it does not exist.
+3. Extract the ZIP there. The final layout must contain
+   `plugins/pdf_to_epub_receiver.koplugin/main.lua`; avoid an extra nested ZIP folder.
+4. Safely eject the reader and restart KOReader completely.
+
+#### 3. Recommended first-time settings
+
+Open **Menu → Network → PDF to EPUB Receiver**. Configure these while the server is stopped:
+
+- **Save directory:** choose where received files should be stored.
+- **Settings → Allowed extensions (all):** keep this selected to receive any file type.
+- **Settings → Use HTTPS:** keep enabled for encrypted local transfers.
+- **Settings → PIN code:** optional, but recommended on shared Wi-Fi networks. Enter the same PIN
+  in the desktop send window.
+- **Settings → Start with KOReader:** optional; enables the receiver automatically after KOReader
+  starts and Wi-Fi is available.
+- **Settings → File type routing:** optional; can route EPUB, PDF, or other extensions into
+  different folders.
+
+Return to the receiver menu and select **Start server**. The menu text changes to
+**PDF to EPUB Receiver (running)** when it is ready.
+
+#### 4. Send a file
+
+Keep the e-reader and computer on the same Wi-Fi network. In PDF to EPUB OCR, select
+**Send a file** to choose any existing file, or use **Send to KOReader** after a conversion.
+Choose the discovered reader, enter its PIN when configured, select **Send file**, and approve
+the request shown by KOReader.
 
 If multicast discovery is blocked by a guest network, VPN, or router setting, enter the
 e-reader's IP address manually (for example `192.168.1.50`). Every regular file type is supported
