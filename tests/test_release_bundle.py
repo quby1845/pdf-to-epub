@@ -65,6 +65,23 @@ def test_windows_setup_contains_verified_amd_rocm_path() -> None:
     assert 'if ($gpuProfile.Vendor -eq "amd")' in setup
 
 
+def test_windows_setup_reuses_existing_visual_cpp_runtime() -> None:
+    setup = Path("setup.ps1").read_text(encoding="ascii")
+    assert "function Test-VisualCppRuntime" in setup
+    assert "function Ensure-VisualCppRuntime" in setup
+    assert "VC\\Runtimes\\x64" in setup
+    assert "Visual C++ Runtime zaten kurulu" in setup
+    assert "Ensure-VisualCppRuntime" in setup
+
+
+def test_windows_setup_accepts_winget_no_applicable_update_for_vcredist() -> None:
+    setup = Path("setup.ps1").read_text(encoding="ascii")
+    assert "function Test-WingetExitCodeSuccessful" in setup
+    assert "-1978335189" in setup
+    assert "0x8A15002B" in setup
+    assert "AdditionalSuccessCodes" in setup
+
+
 def test_windows_setup_runs_multiline_torch_probe_from_a_file() -> None:
     setup = Path("setup.ps1").read_text(encoding="ascii")
     assert "function Invoke-PythonCode" in setup

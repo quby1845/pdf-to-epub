@@ -256,6 +256,7 @@ Run `pdf-to-epub-ocr --help` for the complete interface.
 | `CUDA/ROCm is not available` | Rerun `KURULUM.bat` so the matching NVIDIA or AMD PyTorch build is installed. |
 | Unsupported AMD GPU | Windows AMD beta only accepts models in AMD's ROCm 7.2.1 compatibility matrix. |
 | AMD ROCm setup fails | Confirm Windows 11, Python 3.12, Radeon driver 26.2.2, and a supported GPU. |
+| Visual C++ / WinGet `-1978335189` | Upgrade to the current installer; it reuses an installed runtime and treats "no applicable update" as non-fatal. |
 | `[WinError 206]` during setup | Run the current `KURULUM.bat`; it uses a short managed environment and repairs partial installs. |
 | `[WinError 1314]` in the model cache | Upgrade to the current release; it falls back to ordinary copies without admin or Developer Mode. |
 | RTX 50 / `no kernel image` | Rerun `KURULUM.bat` so CUDA 13 PyTorch with `sm_120` kernels is selected. |

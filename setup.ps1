@@ -340,16 +340,77 @@ except Exception as error:
 "@
 }
 
+function Test-WingetExitCodeSuccessful {
+    param(
+        [Parameter(Mandatory = $true)] [int] $ExitCode,
+        [int[]] $AdditionalSuccessCodes = @()
+    )
+    return $ExitCode -eq 0 -or $AdditionalSuccessCodes -contains $ExitCode
+}
+
+function Test-VisualCppRuntime {
+    $registryPaths = @(
+        "HKLM:\SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\VisualStudio\14.0\VC\Runtimes\x64"
+    )
+    foreach ($registryPath in $registryPaths) {
+        try {
+            $runtime = Get-ItemProperty -LiteralPath $registryPath -ErrorAction Stop
+            if ([int]$runtime.Installed -eq 1) {
+                return $true
+            }
+        } catch {
+            # Some Windows images omit one registry view. Check the next one.
+        }
+    }
+
+    $runtimeFiles = @(
+        (Join-Path $env:SystemRoot "System32\vcruntime140.dll"),
+        (Join-Path $env:SystemRoot "System32\vcruntime140_1.dll"),
+        (Join-Path $env:SystemRoot "System32\msvcp140.dll")
+    )
+    foreach ($runtimeFile in $runtimeFiles) {
+        if (-not (Test-Path -LiteralPath $runtimeFile)) {
+            return $false
+        }
+    }
+    return $true
+}
+
 function Install-WingetPackage {
     param(
         [Parameter(Mandatory = $true)] [string] $Id,
-        [Parameter(Mandatory = $true)] [string] $DisplayName
+        [Parameter(Mandatory = $true)] [string] $DisplayName,
+        [int[]] $AdditionalSuccessCodes = @()
     )
     Write-Host "$DisplayName kuruluyor..." -ForegroundColor Green
     winget install --exact --id $Id --accept-source-agreements --accept-package-agreements --silent
-    if ($LASTEXITCODE -ne 0) {
-        throw "$DisplayName kurulamadi (winget cikis kodu: $LASTEXITCODE)."
+    $exitCode = $LASTEXITCODE
+    if (-not (Test-WingetExitCodeSuccessful `
+        -ExitCode $exitCode `
+        -AdditionalSuccessCodes $AdditionalSuccessCodes)) {
+        throw "$DisplayName kurulamadi (winget cikis kodu: $exitCode)."
     }
+    if ($exitCode -ne 0) {
+        Write-Host "$DisplayName zaten guncel veya yeniden kurulmasi gerekmiyor." -ForegroundColor Yellow
+    }
+}
+
+function Ensure-VisualCppRuntime {
+    if (Test-VisualCppRuntime) {
+        Write-Host "Visual C++ Runtime zaten kurulu; yeniden kurulmayacak." -ForegroundColor Yellow
+        return
+    }
+    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+        throw "Visual C++ Runtime bulunamadi ve winget kullanilamiyor. Microsoft Visual C++ 2015-2022 x64 Runtime kurun."
+    }
+
+    # WinGet returns 0x8A15002B (-1978335189) when no applicable update exists.
+    # That is safe here: a real PyTorch import and GPU tensor probe still run below.
+    Install-WingetPackage `
+        -Id "Microsoft.VCRedist.2015+.x64" `
+        -DisplayName "Visual C++ Runtime" `
+        -AdditionalSuccessCodes @(-1978335189)
 }
 
 function Install-AmdRocmPyTorch {
@@ -428,6 +489,15 @@ if ($InstallerLogicSelfTest) {
         })
         if ($amdProbe -notmatch 'Expected rocm PyTorch') {
             throw "AMD ROCm probe selection failed."
+        }
+        if (-not (Test-WingetExitCodeSuccessful -ExitCode 0) -or
+            -not (Test-WingetExitCodeSuccessful `
+                -ExitCode -1978335189 `
+                -AdditionalSuccessCodes @(-1978335189)) -or
+            (Test-WingetExitCodeSuccessful `
+                -ExitCode -1978335190 `
+                -AdditionalSuccessCodes @(-1978335189))) {
+            throw "WinGet success-code handling failed."
         }
         $pythonSelection = Find-SupportedPython
         if (-not $pythonSelection) {
@@ -532,9 +602,7 @@ Write-Host "Ekran karti: $($gpuProfile.Name); altyapi: $($gpuProfile.Vendor)" -F
 if (-not (Test-PythonCommand -Command $venvPython -Code $torchProbe)) {
     if ($gpuProfile.Vendor -eq "amd") {
         Write-Host "AMD ROCm 7.2.1 ve uyumlu PyTorch kuruluyor..." -ForegroundColor Green
-        if (Get-Command winget -ErrorAction SilentlyContinue) {
-            Install-WingetPackage -Id "Microsoft.VCRedist.2015+.x64" -DisplayName "Visual C++ Runtime"
-        }
+        Ensure-VisualCppRuntime
         Install-AmdRocmPyTorch -PythonCommand $venvPython
     } else {
         $torchChannel = Get-TorchChannel -GpuProfile $gpuProfile
@@ -554,6 +622,9 @@ if (-not (Test-PythonCommand -Command $venvPython -Code $torchProbe)) {
 Write-Host "[4/7] PyTorch gercek GPU islemiyle dogrulaniyor..." -ForegroundColor Green
 $torchProbeExit = Invoke-PythonCode -Command $venvPython -Code $torchProbe
 if ($torchProbeExit -ne 0) {
+    if ($gpuProfile.Vendor -eq "amd") {
+        throw "AMD ROCm PyTorch kuruldu ancak ekran kartinda calismiyor. Windows 11, Python 3.12 ve Radeon 26.2.2 surucusunu dogrulayin."
+    }
     throw "PyTorch kurulmus gorunuyor ancak ekran kartinda calismiyor. Kurulum onarilamadi."
 }
 

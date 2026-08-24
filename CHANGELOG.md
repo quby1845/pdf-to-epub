@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Reuse an existing Microsoft Visual C++ x64 runtime during AMD setup and treat WinGet's
+  `0x8A15002B` "no applicable update" result as non-fatal, while retaining the real ROCm
+  PyTorch import and GPU tensor validation.
+
 ## [0.9.1] - 2026-08-20
 
 ### Added

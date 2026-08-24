@@ -172,6 +172,7 @@ GPU programları, PyTorch ve sürücü sürümü gerçek tüketimi değiştirebi
 | RTX 50 / `no kernel image` | `KURULUM.bat` dosyasını yeniden çalıştırın; kurulum CUDA 13 + `sm_120` paketini seçer |
 | Desteklenmeyen AMD ekran kartı | Kartınızı AMD'nin Windows ROCm 7.2.1 uyumluluk listesinde kontrol edin |
 | AMD ROCm kurulumu başarısız | Windows 11, Python 3.12 ve Radeon sürücüsü 26.2.2 kullandığınızı doğrulayın |
+| Visual C++ / WinGet `-1978335189` | Güncel kurucuyu kullanın; yüklü runtime yeniden kurulmaz ve "uygulanabilir güncelleme yok" sonucu hata sayılmaz |
 | 6 GB VRAM | Mevcut 6,5 GB ana model sığmaz; Tiny/Small bunu küçültmez |
 | 8 GB ve üzeri bellek hatası | Diğer GPU uygulamalarını kapatın; sayfa yükü için `base` veya `small` deneyin |
 | Pandoc/PyTorch bulunamadı | Kurulumu yeniden çalıştırın ve bilgisayarı yeniden başlatın |
