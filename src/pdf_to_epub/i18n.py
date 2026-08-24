@@ -187,4 +187,3 @@ def translate(language: str, key: str, **values: object) -> str:
     normalized = normalize_ui_language(language)
     translated = _TEXT[key][normalized]
     return translated.format(**values) if values else translated
-

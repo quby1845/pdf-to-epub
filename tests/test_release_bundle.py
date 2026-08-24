@@ -122,4 +122,3 @@ def test_release_workflow_builds_and_publishes_setup_exe() -> None:
     assert "Inno Setup 6\\ISCC.exe" in workflow
     assert "windows-setup.exe.sha256" in workflow
     assert "needs: [build, windows-bundle, windows-installer]" in workflow
-

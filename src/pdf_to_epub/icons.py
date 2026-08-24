@@ -386,4 +386,3 @@ def create_app_icon(master: tk.Misc) -> tk.PhotoImage:
 def icon_names() -> tuple[str, ...]:
     """Return stable names for tests and UI composition."""
     return tuple(_ICON_ROWS)
-

@@ -361,9 +361,7 @@ class KOReaderSendDialog:
                 device,
                 self.file_path,
                 pin=pin,
-                progress=lambda sent, total: self.events.put(
-                    ("progress", (sent, total))
-                ),
+                progress=lambda sent, total: self.events.put(("progress", (sent, total))),
             )
             self.events.put(("sent", result))
         except (LocalSendError, ValueError) as error:
@@ -1611,4 +1609,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

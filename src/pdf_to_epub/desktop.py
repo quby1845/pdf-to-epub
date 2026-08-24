@@ -500,4 +500,3 @@ def friendly_error(error: Exception, ui_language: str = "tr") -> str:
             "Ekran kartınızın modelini ve VRAM miktarını hata bildirimine ekleyin."
         )
     return message
-

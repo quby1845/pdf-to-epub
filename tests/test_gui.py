@@ -107,4 +107,3 @@ def test_language_toggle_localizes_defaults_and_preserves_choices(monkeypatch) -
     assert app.selected_file_var.get() == "No PDF selected yet"
     assert app.status_var.get() == "Start by choosing a PDF."
     assert rebuilt == [True]
-

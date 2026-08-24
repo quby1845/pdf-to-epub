@@ -168,9 +168,7 @@ def test_send_file_uses_localsend_metadata_pin_checksum_and_progress(
     book = tmp_path / "book.epub"
     book.write_bytes(b"ebook-data" * 1000)
     progress: list[tuple[int, int]] = []
-    device = LocalSendDevice(
-        "KOReader", "127.0.0.1", server.server_port, protocol="http"
-    )
+    device = LocalSendDevice("KOReader", "127.0.0.1", server.server_port, protocol="http")
     try:
         result = send_file(
             device,
@@ -267,9 +265,7 @@ def test_send_file_retries_checksum_mismatch(
     def prepared(*_args: object, **_kwargs: object) -> tuple[int, bytes, str]:
         request = json.loads(_kwargs["body"])
         file_id.append(next(iter(request["files"])))
-        body = json.dumps(
-            {"sessionId": "session", "files": {file_id[-1]: "token"}}
-        ).encode()
+        body = json.dumps({"sessionId": "session", "files": {file_id[-1]: "token"}}).encode()
         return 200, body, ""
 
     attempts = 0
@@ -348,9 +344,7 @@ def test_probe_https_device_captures_and_pins_certificate(
         thread.join(timeout=1)
 
 
-def test_discovery_collects_udp_fallback(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_discovery_collects_udp_fallback(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     identity = load_or_create_identity(tmp_path / "identity")
     monkeypatch.setattr(localsend, "load_or_create_identity", lambda: identity)
     payload = json.dumps(
@@ -418,4 +412,3 @@ def test_discovery_collects_udp_fallback(
     devices = discover_devices(timeout=0.03)
     assert [(item.alias, item.ip) for item in devices] == [("Kobo Clara", "192.168.1.80")]
     assert fake.sent[0][1] == (localsend.MULTICAST_ADDRESS, DEFAULT_PORT)
-

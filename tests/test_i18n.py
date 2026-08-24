@@ -12,4 +12,3 @@ def test_translate_supports_both_languages_and_interpolation() -> None:
 def test_unknown_language_falls_back_to_english() -> None:
     assert normalize_ui_language("unsupported") == "en"
     assert translate("unsupported", "pause") == "Pause"
-

@@ -332,10 +332,7 @@ class _PinnedHTTPSConnection(http.client.HTTPSConnection):
             self.close()
             raise LocalSendError("The LocalSend device did not present a certificate.")
         self.peer_fingerprint = _certificate_fingerprint(certificate)
-        if (
-            self.expected_fingerprint
-            and self.peer_fingerprint != self.expected_fingerprint
-        ):
+        if self.expected_fingerprint and self.peer_fingerprint != self.expected_fingerprint:
             expected = self.expected_fingerprint
             actual = self.peer_fingerprint
             self.close()
@@ -594,4 +591,3 @@ def send_file(
         ) from error
     except (ConnectionError, OSError, ssl.SSLError) as error:
         raise LocalSendError(f"Could not connect to the KOReader device: {error}") from error
-

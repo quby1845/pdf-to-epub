@@ -242,4 +242,3 @@ def test_desktop_english_labels_and_messages(tmp_path: Path) -> None:
     assert friendly_progress(progress, "en") == (
         "Completed 40 / 100 pages (40%) — about 1 hr 15 min remaining"
     )
-

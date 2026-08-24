@@ -838,4 +838,3 @@ def convert_pdf(
     finally:
         if not options.keep_intermediates:
             shutil.rmtree(work_dir, ignore_errors=True)
-
