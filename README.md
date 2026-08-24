@@ -86,7 +86,7 @@ settings. PDF to EPUB OCR provides a reproducible command-line workflow for scan
 - repair of common line-end hyphenation artifacts;
 - conservative cleanup of prose misclassified as mostly empty `None` tables;
 - EPUB, editable Markdown, and legacy MOBI outputs;
-- one-click EPUB/MOBI delivery to KOReader with the project's own receiver plugin;
+- one-click delivery of any file to KOReader with the project's own receiver plugin;
 - configurable language, metadata, OCR model, DPI, and stylesheet;
 - a non-interactive CLI suitable for repeatable conversions.
 
@@ -250,11 +250,12 @@ toggle updates the complete interface, including native Windows chrome. The mode
 layout uses bundled theme-aware icons, a visual file summary, and clear status feedback; no UI
 assets are fetched from the internet.
 
-### Send the finished book directly to KOReader
+### Send any file directly to KOReader
 
-After an EPUB or MOBI conversion succeeds, select **Send to KOReader** in the result bar. The app
-and its official **PDF to EPUB Receiver** plugin use the open LocalSend v2.2 LAN protocol; the
-book travels directly from the computer to the e-reader and is not uploaded to a cloud relay.
+Select **Send a file** at any time to choose an existing file without running a conversion. A
+finished conversion can also be sent with **Send to KOReader** in the result bar. The app and its
+official **PDF to EPUB Receiver** plugin use the open LocalSend v2.2 LAN protocol; data travels
+directly from the computer to the e-reader and is not uploaded to a cloud relay.
 
 1. Download the receiver ZIP matching your e-reader from the
    [latest release](https://github.com/quby1845/pdf-to-epub/releases/latest): `armv7` for current
@@ -264,13 +265,15 @@ book travels directly from the computer to the e-reader and is not uploaded to a
    KOReader.
 3. In KOReader, open **Menu → Network → PDF to EPUB Receiver**, select a destination directory,
    and start the server. Keep the e-reader and computer on the same Wi-Fi network.
-4. In PDF to EPUB OCR, select **Send to KOReader**. Choose the discovered device and approve the
-   request on the e-reader. Enter its PIN in the optional PIN box if KOReader requires one.
+4. In PDF to EPUB OCR, select **Send a file** or **Send to KOReader**. Choose the discovered
+   device and approve the request on the e-reader. Enter its PIN in the optional PIN box if
+   KOReader requires one.
 
 If multicast discovery is blocked by a guest network, VPN, or router setting, enter the
-e-reader's IP address manually (for example `192.168.1.50`). The transfer supports EPUB, MOBI,
-and PDF. HTTPS transfers use a persistent local client certificate and pin the receiver's
-announced certificate fingerprint before sending book data.
+e-reader's IP address manually (for example `192.168.1.50`). Every regular file type is supported
+by default; KOReader's receiver settings can optionally restrict allowed extensions. HTTPS
+transfers use a persistent local client certificate and pin the receiver's announced certificate
+fingerprint before sending data.
 
 Advanced users can use the CLI:
 

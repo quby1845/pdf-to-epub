@@ -11,6 +11,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Add the official **PDF to EPUB Receiver** KOReader companion plugin, maintained and released
   from this repository instead of requiring users to install a third-party plugin.
+- Add an always-available **Send a file** action so any regular file can be selected and sent to
+  KOReader without running a PDF conversion first.
 - Build architecture-specific KOReader packages for current ARM devices, ARM64 readers, and
   legacy Kindle hardware.
 - Add automatic receiver update support through this project's GitHub releases, deterministic

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from types import SimpleNamespace
 
 from pdf_to_epub.converter import ConversionPauseController
@@ -107,3 +108,23 @@ def test_language_toggle_localizes_defaults_and_preserves_choices(monkeypatch) -
     assert app.selected_file_var.get() == "No PDF selected yet"
     assert app.status_var.get() == "Start by choosing a PDF."
     assert rebuilt == [True]
+
+
+def test_choose_file_for_koreader_accepts_any_regular_file(tmp_path: Path, monkeypatch) -> None:
+    selected = tmp_path / "archive.custom"
+    selected.write_bytes(b"payload")
+    app = object.__new__(PdfToEpubApp)
+    app.ui_language = "en"
+    opened: list[tuple[object, Path]] = []
+    monkeypatch.setattr(
+        "pdf_to_epub.gui.filedialog.askopenfilename",
+        lambda **_kwargs: str(selected),
+    )
+    monkeypatch.setattr(
+        "pdf_to_epub.gui.KOReaderSendDialog",
+        lambda owner, path: opened.append((owner, path)),
+    )
+
+    app._choose_file_for_koreader()
+
+    assert opened == [(app, selected)]

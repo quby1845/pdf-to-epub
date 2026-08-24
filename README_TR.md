@@ -180,12 +180,13 @@ noktasında beklemeye geçer; tamamlanan sayfalar silinmez ve model ekran kartı
 süre hesabına eklenmez. Bu özellik özellikle uzun kitaplarda bilgisayara soğuma fırsatı vermek
 içindir; duraklatma sırasında VRAM boşaltılmaz.
 
-## Oluşan kitabı doğrudan KOReader'a gönderme
+## İstediğiniz dosyayı doğrudan KOReader'a gönderme
 
-EPUB veya MOBI dönüşümü tamamlandığında sonuç satırında **KOReader'a gönder** düğmesi görünür.
-Program ve kendi **PDF to EPUB Receiver** eklentimiz açık LocalSend 2.2 protokolünü kullanır.
-Aktarım aynı yerel ağ içinde doğrudan bilgisayardan e-okuyucuya yapılır; kitap bir bulut
-sunucusuna yüklenmez.
+Herhangi bir dönüşüm yapmadan **Dosya gönder** düğmesiyle bilgisayarınızdaki mevcut bir dosyayı
+seçebilirsiniz. Tamamlanan dönüşümler sonuç satırındaki **KOReader'a gönder** düğmesiyle de
+gönderilebilir. Program ve kendi **PDF to EPUB Receiver** eklentimiz açık LocalSend 2.2
+protokolünü kullanır. Aktarım aynı yerel ağ içinde doğrudan bilgisayardan e-okuyucuya yapılır;
+dosya bir bulut sunucusuna yüklenmez.
 
 1. [Son sürüm](https://github.com/quby1845/pdf-to-epub/releases/latest) sayfasından cihazınıza
    uygun eklenti ZIP'ini indirin: güncel Kindle/Kobo/PocketBook/reMarkable 2 için `armv7`, ARM64
@@ -194,12 +195,13 @@ sunucusuna yüklenmez.
    KOReader'ı yeniden başlatın.
 3. KOReader'da **Menü → Ağ → PDF to EPUB Receiver** bölümünü açın, kayıt klasörünü seçin ve
    sunucuyu başlatın. Bilgisayar ile e-okuyucu aynı Wi-Fi ağında olmalıdır.
-4. Bilgisayarda **KOReader'a gönder** düğmesine basın, bulunan cihazı seçin ve KOReader ekranındaki
-   isteği onaylayın. KOReader PIN istiyorsa isteğe bağlı PIN alanına girin.
+4. Bilgisayarda **Dosya gönder** veya **KOReader'a gönder** düğmesine basın, bulunan cihazı seçin
+   ve KOReader ekranındaki isteği onaylayın. KOReader PIN istiyorsa isteğe bağlı PIN alanına girin.
 
 Misafir ağı, VPN veya modem ayarı otomatik keşfi engellerse KOReader cihazının IP adresini
-(`192.168.1.50` gibi) elle girebilirsiniz. EPUB, MOBI ve PDF gönderilebilir. HTTPS aktarımında
-uygulama kalıcı bir yerel istemci sertifikası kullanır ve kitap verisini göndermeden önce
+(`192.168.1.50` gibi) elle girebilirsiniz. Varsayılan ayarda her tür normal dosya gönderilebilir;
+isterseniz KOReader eklenti ayarlarından kabul edilen uzantıları sınırlayabilirsiniz. HTTPS
+aktarımında uygulama kalıcı bir yerel istemci sertifikası kullanır ve veriyi göndermeden önce
 KOReader'ın keşif sırasında bildirdiği sertifika parmak izini doğrular.
 
 Program PDF'de satır sonunda bölünmüş `bit-miş` gibi Türkçe kelimeleri EPUB oluşturulurken

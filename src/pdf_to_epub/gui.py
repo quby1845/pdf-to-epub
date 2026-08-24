@@ -44,7 +44,6 @@ from pdf_to_epub.diagnostics import configure_logging, diagnostic_log_path
 from pdf_to_epub.i18n import translate
 from pdf_to_epub.icons import create_app_icon, create_icon
 from pdf_to_epub.localsend import (
-    SUPPORTED_EXTENSIONS,
     LocalSendDevice,
     LocalSendError,
     discover_devices,
@@ -178,6 +177,29 @@ class KOReaderSendDialog:
             justify="left",
             wraplength=540,
         ).pack(anchor="w", pady=(6, 16))
+        file_size = self.file_path.stat().st_size
+        if file_size >= 1024 * 1024:
+            size_label = f"{file_size / (1024 * 1024):.1f} MB"
+        elif file_size >= 1024:
+            size_label = f"{file_size / 1024:.1f} KB"
+        else:
+            size_label = f"{file_size} B"
+        tk.Label(
+            card,
+            text=app._t(
+                "koreader_selected_file",
+                name=self.file_path.name,
+                size=size_label,
+            ),
+            image=app._icon("file", theme.primary),
+            compound="left",
+            font=("Segoe UI", 9, "bold"),
+            foreground=theme.ink,
+            background=theme.accent_soft,
+            anchor="w",
+            padx=10,
+            pady=8,
+        ).pack(fill="x", pady=(0, 16))
         tk.Label(
             card,
             text=app._t("koreader_devices"),
@@ -1058,6 +1080,17 @@ class PdfToEpubApp:
         self.pause_button.configure(state="disabled", cursor="arrow")
         self.pause_button.pack(side="right", padx=(8, 0))
 
+        self.send_file_button = self._button(
+            action_bar,
+            self._t("send_file_to_koreader"),
+            self._choose_file_for_koreader,
+            padx=18,
+            pady=11,
+            font=("Segoe UI", 10, "bold"),
+            icon="send",
+        )
+        self.send_file_button.pack(side="right", padx=(8, 0))
+
         self.progress = ttk.Progressbar(
             card,
             mode="indeterminate",
@@ -1222,6 +1255,14 @@ class PdfToEpubApp:
         )
         if selected:
             self.output_var.set(selected)
+
+    def _choose_file_for_koreader(self) -> None:
+        selected = filedialog.askopenfilename(
+            title=self._t("select_send_file_title"),
+            filetypes=[(self._t("all_files"), "*")],
+        )
+        if selected:
+            KOReaderSendDialog(self, Path(selected))
 
     def _model_changed(self, _event: object | None = None) -> None:
         self.model_help_var.set(model_description(self.model_var.get(), self.ui_language))
@@ -1554,10 +1595,7 @@ class PdfToEpubApp:
         self.folder_button.pack_forget()
 
     def _show_result_actions(self) -> None:
-        if (
-            self.last_output is not None
-            and self.last_output.suffix.casefold() in SUPPORTED_EXTENSIONS
-        ):
+        if self.last_output is not None and self.last_output.is_file():
             self.koreader_button.pack(side="left", padx=(0, 7))
         self.open_button.pack(side="left", padx=(0, 7))
         self.folder_button.pack(side="left")

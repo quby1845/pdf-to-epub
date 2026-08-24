@@ -34,7 +34,6 @@ DEFAULT_PORT = 53317
 PROTOCOL_VERSION = "2.2"
 MAX_DISCOVERY_BODY = 64 * 1024
 MAX_CONTROL_BODY = 1024 * 1024
-SUPPORTED_EXTENSIONS = {".epub", ".mobi", ".pdf"}
 
 
 class LocalSendError(RuntimeError):
@@ -523,13 +522,11 @@ def send_file(
     pin: str = "",
     progress: ProgressCallback | None = None,
 ) -> LocalSendResult:
-    """Prepare and upload one e-book using LocalSend protocol v2.2."""
+    """Prepare and upload one regular file using LocalSend protocol v2.2."""
 
     path = file_path.expanduser().resolve()
     if not path.is_file():
         raise LocalSendError(f"File not found: {path}")
-    if path.suffix.casefold() not in SUPPORTED_EXTENSIONS:
-        raise LocalSendError("KOReader transfer supports EPUB, MOBI, and PDF files.")
 
     identity = load_or_create_identity()
     digest = hashlib.sha256()

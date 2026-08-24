@@ -84,16 +84,26 @@ _TEXT: dict[str, dict[UiLanguage, str]] = {
     "open_output": {"tr": "Çıktıyı aç", "en": "Open output"},
     "open_folder": {"tr": "Klasörü aç", "en": "Open folder"},
     "send_to_koreader": {"tr": "KOReader'a gönder", "en": "Send to KOReader"},
+    "send_file_to_koreader": {"tr": "Dosya gönder", "en": "Send a file"},
+    "select_send_file_title": {
+        "tr": "KOReader'a gönderilecek dosyayı seçin",
+        "en": "Choose a file to send to KOReader",
+    },
+    "all_files": {"tr": "Tüm dosyalar", "en": "All files"},
     "koreader_title": {"tr": "KOReader'a gönder", "en": "Send to KOReader"},
     "koreader_body": {
         "tr": (
             "KOReader'da PDF to EPUB Receiver eklentisini başlatın. Aynı Wi-Fi ağındaki cihazlar "
-            "otomatik olarak burada görünecektir."
+            "otomatik olarak burada görünecektir. Her tür normal dosya aktarılabilir."
         ),
         "en": (
             "Start PDF to EPUB Receiver in KOReader. Devices on the same Wi-Fi network "
-            "will appear here automatically."
+            "will appear here automatically. Any regular file can be transferred."
         ),
+    },
+    "koreader_selected_file": {
+        "tr": "Gönderilecek dosya: {name} • {size}",
+        "en": "File to send: {name} • {size}",
     },
     "koreader_devices": {"tr": "Bulunan cihazlar", "en": "Discovered devices"},
     "koreader_scanning": {"tr": "Cihazlar aranıyor…", "en": "Looking for devices…"},

@@ -227,14 +227,36 @@ def test_send_file_maps_receiver_errors(
         thread.join(timeout=1)
 
 
-def test_send_file_rejects_missing_and_unsupported_files(tmp_path: Path) -> None:
+def test_send_file_rejects_missing_files(tmp_path: Path) -> None:
     device = LocalSendDevice("KOReader", "127.0.0.1", protocol="http")
     with pytest.raises(LocalSendError, match="File not found"):
         send_file(device, tmp_path / "missing.epub")
-    unsupported = tmp_path / "notes.md"
-    unsupported.write_text("text", encoding="utf-8")
-    with pytest.raises(LocalSendError, match="EPUB, MOBI, and PDF"):
-        send_file(device, unsupported)
+
+
+def test_send_file_accepts_arbitrary_file_types(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    identity = load_or_create_identity(tmp_path / "identity")
+    monkeypatch.setattr(localsend, "load_or_create_identity", lambda: identity)
+    server = _UploadServer()
+    thread = _run_server(server)
+    notes = tmp_path / "notes.md"
+    notes.write_text("# Notes", encoding="utf-8")
+    try:
+        result = send_file(
+            LocalSendDevice("KOReader", "127.0.0.1", server.server_port, protocol="http"),
+            notes,
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join(timeout=1)
+
+    assert result.bytes_sent == notes.stat().st_size
+    assert server.prepare is not None
+    file_meta = next(iter(server.prepare["files"].values()))  # type: ignore[index,union-attr]
+    assert file_meta["fileName"] == "notes.md"
+    assert file_meta["fileType"] == "text/markdown"
 
 
 def test_send_file_handles_already_received_and_invalid_sessions(
