@@ -110,9 +110,9 @@ jobs:
           $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path -LiteralPath $iscc)) { throw "Inno Setup compiler was not found." }
           New-Item -ItemType Directory -Path build\installer -Force | Out-Null
-          & $iscc "/DAppVersion=0.12.0" "/DSourceRoot=$PWD" "/DOutputDirectory=$PWD\build\installer" .\installer\pdf-to-epub.iss
+          & $iscc "/DAppVersion=0.12.1" "/DSourceRoot=$PWD" "/DOutputDirectory=$PWD\build\installer" .\installer\pdf-to-epub.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
-          if (-not (Test-Path -LiteralPath .\build\installer\pdf-to-epub-ocr-v0.12.0-windows-setup.exe)) { throw "Setup.exe was not created." }
+          if (-not (Test-Path -LiteralPath .\build\installer\pdf-to-epub-ocr-v0.12.1-windows-setup.exe)) { throw "Setup.exe was not created." }
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

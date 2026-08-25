@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.12.1] - 2026-08-25
+
 ### Fixed
 
 - Follow AMD's documented Windows ROCm wheel installation sequence without pip's
