@@ -18,7 +18,7 @@ jobs:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
           cache: pip
@@ -113,7 +113,7 @@ jobs:
           & $iscc "/DAppVersion=0.12.2" "/DSourceRoot=$PWD" "/DOutputDirectory=$PWD\build\installer" .\installer\pdf-to-epub.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed." }
           if (-not (Test-Path -LiteralPath .\build\installer\pdf-to-epub-ocr-v0.12.2-windows-setup.exe)) { throw "Setup.exe was not created." }
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
           cache: pip
@@ -141,7 +141,7 @@ jobs:
           - {name: macOS, os: macos-latest, bundle: macos}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
       - run: bash -n setup.sh launch.sh
