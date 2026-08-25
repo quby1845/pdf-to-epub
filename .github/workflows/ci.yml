@@ -17,7 +17,7 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -32,7 +32,7 @@ jobs:
   package:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
@@ -48,7 +48,7 @@ jobs:
     name: KOReader receiver
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: extractions/setup-just@v4
         with:
           just-version: 1.57.0
@@ -72,7 +72,7 @@ jobs:
     name: Windows desktop launcher
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Smoke test cmd.exe launchers
         shell: cmd
         run: |
@@ -126,7 +126,7 @@ jobs:
     name: Docker configuration
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: docker compose config --quiet
       - run: docker build --target syntax-check .
 
@@ -140,7 +140,7 @@ jobs:
           - {name: Linux, os: ubuntu-latest, bundle: linux}
           - {name: macOS, os: macos-latest, bundle: macos}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
