@@ -152,6 +152,9 @@ def test_desktop_messages_are_friendly_and_future_safe() -> None:
     )
     assert "uygulamaları kapatıp" in friendly_error(RuntimeError("There is not enough free VRAM"))
     assert "KURULUM.bat" in friendly_error(RuntimeError("missing sm_120 support"), platform="win32")
+    assert "ROCm 7.14" in friendly_error(
+        RuntimeError("No module named 'torch._C._distributed_c10d'"), platform="win32"
+    )
     assert "VRAM" in friendly_error(RuntimeError("Failed to extract page 1 layout at stage 1"))
     assert friendly_error(RuntimeError("different failure")) == "different failure"
 

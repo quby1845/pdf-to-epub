@@ -70,21 +70,24 @@ def test_windows_setup_contains_verified_amd_rocm_path() -> None:
     setup = Path("setup.ps1").read_text(encoding="ascii")
     assert "Test-SupportedAmdGpuName" in setup
     assert "AMD Radeon RX 7900 XTX" in setup
-    assert "rocm-rel-7.2.1" in setup
-    assert "torch-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl" in setup
-    assert "torchaudio-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl" in setup
+    assert "https://repo.amd.com/rocm/whl-multi-arch/" in setup
+    assert "torch[device-all]==2.12.0+rocm7.14.0" in setup
+    assert "torchvision[device-all]==0.27.0+rocm7.14.0" in setup
+    assert "torchaudio==2.11.0+rocm7.14.0" in setup
+    assert "from torch.distributed.fsdp import FullyShardedDataParallel" in setup
     assert 'if ($gpuProfile.Vendor -eq "amd")' in setup
 
 
-def test_windows_amd_install_does_not_force_reinstall_rocm_dependencies() -> None:
+def test_windows_amd_install_replaces_legacy_rocm_without_forced_reinstall() -> None:
     setup = Path("setup.ps1").read_text(encoding="ascii")
     amd_function = setup.split("function Install-AmdRocmPyTorch", 1)[1].split(
         "if ($PythonProbeSelfTest)", 1
     )[0]
 
-    assert "pip uninstall --yes torch torchvision torchaudio" in amd_function
-    assert "pip install --no-cache-dir @torchPackages" in amd_function
-    assert "--force-reinstall @torchPackages" not in amd_function
+    assert "torch torchvision torchaudio rocm" in amd_function
+    assert "rocm-sdk-core rocm-sdk-devel rocm-sdk-libraries-custom" in amd_function
+    assert "pip install --no-cache-dir --index-url $indexUrl @torchPackages" in amd_function
+    assert "--force-reinstall" not in amd_function
 
 
 def test_windows_setup_accepts_an_existing_visual_cpp_runtime() -> None:

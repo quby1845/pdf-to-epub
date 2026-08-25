@@ -47,13 +47,13 @@ güncelleme kontrolü ve kaldırma işlemi de yapılabilir.
 RTX 50 serisinde `sm_120` destekli CUDA 13 paketi otomatik seçilir; çalışan RTX 30/40 kurulumu
 gereksiz yere değiştirilmez.
 
-AMD desteği şimdilik beta durumundadır. Windows 11, Python 3.12 ve Radeon sürücüsü 26.2.2
-gerektirir. Resmi Windows ROCm 7.2.1 listesinde şu kartlar bulunur: RX 9070, RX 9070 XT,
-AI PRO R9700, RX 9060 XT, RX 7900 XTX, PRO W7900, PRO W7900 Dual Slot ve RX 7700. Kurulum ekran
-kartını otomatik algılar; listede olmayan AMD kartta yanlış paket kurmak yerine anlaşılır hata
-verir. PyTorch AMD'de de `torch.cuda` ad alanını kullandığı için bu isim loglarda görülebilir.
-Kurulum, gerçek GPU tensörü çalıştırmadan tamamlandı sayılmaz. Güncel liste için AMD'nin
-[Windows uyumluluk tablosuna](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/windows/windows_compatibility.html)
+AMD desteği şimdilik beta durumundadır. Windows 11, Python 3.12, ROCm 7.14 ile uyumlu Radeon
+sürücüsü ve AMD'nin desteklediği bir ekran kartı gerekir. Kurulum AMD'nin ROCm 7.14 / PyTorch
+2.12 paketlerini kurar; ekran kartını otomatik algılar ve listede olmayan kartta yanlış paket
+kurmak yerine anlaşılır hata verir. PyTorch AMD'de de `torch.cuda` ad alanını kullandığı için bu
+isim loglarda görülebilir. Kurulum, gerçek GPU tensörünün yanında Transformers'ın kullandığı
+distributed/FSDP modülünü de doğrulamadan tamamlandı sayılmaz. Güncel liste için AMD'nin
+[ROCm 7.14 uyumluluk tablosuna](https://rocm.docs.amd.com/en/latest/compatibility/compatibility-matrix.html)
 bakabilirsiniz.
 
 ## Linux ve macOS kurulumu
@@ -269,8 +269,9 @@ GPU programları, PyTorch ve sürücü sürümü gerçek tüketimi değiştirebi
 | `[WinError 206]` | Ortam kısa kullanıcı yoluna kurulur; Maintenance Center içinden **Repair** seçin |
 | `[WinError 1314]` | Son sürüm model cache'inde symlink yerine normal kopya kullanır; yönetici/Developer Mode gerekmez |
 | RTX 50 / `no kernel image` | **Repair** seçin; kurulum CUDA 13 + `sm_120` paketini seçer |
-| Desteklenmeyen AMD ekran kartı | Kartınızı AMD'nin Windows ROCm 7.2.1 uyumluluk listesinde kontrol edin |
-| AMD ROCm kurulumu başarısız | Windows 11, Python 3.12 ve Radeon sürücüsü 26.2.2 kullandığınızı doğrulayın |
+| Desteklenmeyen AMD ekran kartı | Kartınızı AMD'nin Windows ROCm 7.14 uyumluluk listesinde kontrol edin |
+| AMD ROCm kurulumu başarısız | Windows 11, Python 3.12, ROCm 7.14 uyumlu sürücü ve desteklenen Radeon kullandığınızı doğrulayın |
+| AMD'de ilk sayfada `_distributed_c10d` hatası | Son sürümü kurup Maintenance Center içinden **Repair** seçin; eski ROCm 7.2.1 yerine ROCm 7.14/PyTorch 2.12 kurulur |
 | 6 GB VRAM | Mevcut 6,5 GB ana model sığmaz; Tiny/Small bunu küçültmez |
 | 8 GB ve üzeri bellek hatası | Diğer GPU uygulamalarını kapatın; sayfa yükü için `base` veya `small` deneyin |
 | Pandoc/PyTorch bulunamadı | Kurulumu yeniden çalıştırın ve bilgisayarı yeniden başlatın |

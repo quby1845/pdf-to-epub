@@ -109,12 +109,12 @@ memory, not the 6.5 GB model download or its base weight footprint.
 
 AMD support is currently beta because the upstream OCR packages still describe their local
 backend as CUDA-only. PyTorch intentionally exposes AMD ROCm devices through the same
-`torch.cuda` API used by those packages, and setup performs a real tensor/kernel probe before
-accepting the installation. The official Windows ROCm 7.2.1 list currently covers RX 9070,
-RX 9070 XT, AI PRO R9700, RX 9060 XT, RX 7900 XTX, PRO W7900 variants, and RX 7700. AMD requires
-Windows 11, Python 3.12, and graphics driver 26.2.2. See AMD's
-[Windows compatibility matrix](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/compatibility/compatibilityrad/windows/windows_compatibility.html)
-and [PyTorch installation guide](https://rocm.docs.amd.com/projects/radeon-ryzen/en/latest/docs/install/installrad/windows/install-pytorch.html).
+`torch.cuda` API used by those packages. Windows setup installs AMD's ROCm 7.14 / PyTorch 2.12
+multi-architecture packages and verifies both a real GPU tensor and the distributed/FSDP import
+used by Transformers before accepting the installation. AMD requires Windows 11, Python 3.12,
+a supported Radeon GPU, and a driver compatible with ROCm 7.14. See AMD's
+[ROCm 7.14 compatibility matrix](https://rocm.docs.amd.com/en/latest/compatibility/compatibility-matrix.html)
+and [PyTorch installation guide](https://rocm.docs.amd.com/projects/ai-ecosystem/en/latest/frameworks/pytorch/install.html).
 
 Linux AMD support uses AMD's published Radeon ROCm 7.2.1 wheels on the supported Ubuntu/Python
 combination. Check AMD's
@@ -136,7 +136,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
 The script detects NVIDIA or a supported AMD Radeon before creating the environment. It installs
-CUDA PyTorch for NVIDIA, or AMD's official ROCm 7.2.1/PyTorch 2.9.1 wheels for eligible Windows
+CUDA PyTorch for NVIDIA, or AMD's official ROCm 7.14/PyTorch 2.12 packages for eligible Windows
 11 cards. The managed environment lives at the short, stable
 `%LOCALAPPDATA%\PDF-to-EPUB-OCR\venv` path, avoiding Windows path-length failures even when the
 downloaded ZIP is deeply nested. It repairs partial environments using real imports and a CUDA
@@ -386,8 +386,9 @@ Run `pdf-to-epub-ocr --help` for the complete interface.
 | `PyTorch is not installed` | Install the CUDA build selected for your driver and Python version. |
 | `CUDA is not available` | Check the NVIDIA driver and PyTorch CUDA build. CPU runs are not supported. |
 | `CUDA/ROCm is not available` | Open Maintenance Center and select **Repair** so the matching NVIDIA or AMD PyTorch build is installed. |
-| Unsupported AMD GPU | Windows AMD beta only accepts models in AMD's ROCm 7.2.1 compatibility matrix. |
-| AMD ROCm setup fails | Confirm Windows 11, Python 3.12, Radeon driver 26.2.2, and a supported GPU. |
+| Unsupported AMD GPU | Windows AMD beta only accepts models in AMD's ROCm 7.14 compatibility matrix. |
+| AMD ROCm setup fails | Confirm Windows 11, Python 3.12, a ROCm 7.14-compatible Radeon driver, and a supported GPU. |
+| AMD conversion stops on page 1 with `_distributed_c10d` | Install the latest release and run **Repair** to replace the legacy ROCm 7.2.1 stack with ROCm 7.14/PyTorch 2.12. |
 | `[WinError 206]` during setup | Open Maintenance Center and select **Repair**; it uses a short managed environment and replaces partial installs. |
 | `[WinError 1314]` in the model cache | Upgrade to the current release; it falls back to ordinary copies without admin or Developer Mode. |
 | RTX 50 / `no kernel image` | Open Maintenance Center and select **Repair** so CUDA 13 PyTorch with `sm_120` kernels is selected. |

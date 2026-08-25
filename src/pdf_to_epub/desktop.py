@@ -481,6 +481,18 @@ def friendly_error(
             f"Ekran kartınızla uyumlu PyTorch/CUDA sürümü kurulu değil. {repair} Ayrıntı: "
             + message
         )
+    if "_distributed_c10d" in message or "torch.distributed/FSDP" in message:
+        if english:
+            return (
+                "The installed AMD ROCm/PyTorch runtime is missing a component required by "
+                f"the OCR engine. {repair} This replaces the legacy ROCm 7.2.1 runtime with "
+                "ROCm 7.14/PyTorch 2.12."
+            )
+        return (
+            "Kurulu AMD ROCm/PyTorch ortamında OCR motorunun ihtiyaç duyduğu bir bileşen "
+            f"eksik. {repair} Bu işlem eski ROCm 7.2.1 ortamını ROCm 7.14/PyTorch 2.12 ile "
+            "değiştirir."
+        )
     if "WinError 1314" in message or "privilege" in message.lower():
         if english:
             return (

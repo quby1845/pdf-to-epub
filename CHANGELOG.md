@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Upgrade the Windows AMD backend to AMD's ROCm 7.14 / PyTorch 2.12 packages and require a
+  working `torch.distributed.fsdp` import during setup. ROCm 7.2.1 could pass the GPU tensor
+  probe but then fail on the first OCR page when Transformers imported the missing C10d module.
+
 ## [0.12.1] - 2026-08-25
 
 ### Fixed

@@ -252,12 +252,24 @@ function Test-SupportedAmdGpuName {
     $supportedNames = @(
         "AMD Radeon RX 9070",
         "AMD Radeon RX 9070 XT",
+        "AMD Radeon RX 9070 GRE",
         "AMD Radeon AI PRO R9700",
+        "AMD Radeon AI PRO R9700S",
+        "AMD Radeon AI PRO R9600D",
+        "AMD Radeon RX 9060",
         "AMD Radeon RX 9060 XT",
         "AMD Radeon RX 7900 XTX",
+        "AMD Radeon RX 7900 XT",
+        "AMD Radeon RX 7900 GRE",
         "AMD Radeon PRO W7900",
         "AMD Radeon PRO W7900 Dual Slot",
-        "AMD Radeon RX 7700"
+        "AMD Radeon PRO W7800",
+        "AMD Radeon PRO W7800 48GB",
+        "AMD Radeon PRO W7700",
+        "AMD Radeon RX 7800 XT",
+        "AMD Radeon RX 7700 XT",
+        "AMD Radeon RX 7700",
+        "AMD Radeon RX 7600"
     )
     return $supportedNames -contains $Name.Trim()
 }
@@ -311,7 +323,7 @@ function Get-GpuProfile {
     }
     $amdName = Get-AnyAmdGpuName
     if ($amdName) {
-        throw "AMD graphics card '$amdName' is not on the official Windows ROCm 7.2.1 list."
+        throw "AMD graphics card '$amdName' is not on the official Windows ROCm 7.14 list."
     }
     throw "No supported NVIDIA CUDA or AMD ROCm graphics card was found."
 }
@@ -336,6 +348,13 @@ try:
     backend = "rocm" if getattr(torch.version, "hip", None) else "cuda"
     if backend != "$expectedBackend":
         raise RuntimeError(f"Expected $expectedBackend PyTorch but found {backend}")
+    if backend == "rocm":
+        try:
+            from torch.distributed.fsdp import FullyShardedDataParallel
+        except (ImportError, ModuleNotFoundError, AttributeError) as error:
+            raise RuntimeError(
+                "ROCm PyTorch lacks torch.distributed/FSDP support required by Transformers"
+            ) from error
     capability = tuple(torch.cuda.get_device_capability(0))
     architectures = set(torch.cuda.get_arch_list())
     if backend == "cuda" and capability >= (12, 0) and "sm_120" not in architectures:
@@ -397,33 +416,24 @@ function Install-WingetPackage {
 
 function Install-AmdRocmPyTorch {
     param([Parameter(Mandatory = $true)] [string] $PythonCommand)
-    $base = "https://repo.radeon.com/rocm/windows/rocm-rel-7.2.1"
-    $sdkPackages = @(
-        "$base/rocm_sdk_core-7.2.1-py3-none-win_amd64.whl",
-        "$base/rocm_sdk_devel-7.2.1-py3-none-win_amd64.whl",
-        "$base/rocm_sdk_libraries_custom-7.2.1-py3-none-win_amd64.whl",
-        "$base/rocm-7.2.1.tar.gz"
-    )
+    $indexUrl = "https://repo.amd.com/rocm/whl-multi-arch/"
     $torchPackages = @(
-        "$base/torch-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
-        "$base/torchaudio-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
-        "$base/torchvision-0.24.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl"
+        "torch[device-all]==2.12.0+rocm7.14.0",
+        "torchvision[device-all]==0.27.0+rocm7.14.0",
+        "torchaudio==2.11.0+rocm7.14.0"
     )
-    & $PythonCommand -m pip install --no-cache-dir @sdkPackages
+    # ROCm 7.2.1 Windows wheels omit torch.distributed/FSDP and crash when
+    # Transformers checks the first OCR generation. Remove that legacy stack
+    # before installing AMD's current multi-architecture Windows packages.
+    & $PythonCommand -m pip uninstall --yes `
+        torch torchvision torchaudio rocm `
+        rocm-sdk-core rocm-sdk-devel rocm-sdk-libraries-custom
     if ($LASTEXITCODE -ne 0) {
-        throw "AMD ROCm 7.2.1 components could not be installed."
+        throw "Existing AMD ROCm/PyTorch packages could not be removed."
     }
-    # AMD's Windows wheels depend on the ROCm metapackage installed above.
-    # --force-reinstall makes pip try to reinstall that dependency from PyPI,
-    # where rocm 7.2.1 does not exist. Remove only the PyTorch distributions,
-    # then use AMD's documented direct-wheel installation without that flag.
-    & $PythonCommand -m pip uninstall --yes torch torchvision torchaudio
+    & $PythonCommand -m pip install --no-cache-dir --index-url $indexUrl @torchPackages
     if ($LASTEXITCODE -ne 0) {
-        throw "Existing AMD PyTorch packages could not be removed."
-    }
-    & $PythonCommand -m pip install --no-cache-dir @torchPackages
-    if ($LASTEXITCODE -ne 0) {
-        throw "AMD ROCm PyTorch packages could not be installed."
+        throw "AMD ROCm 7.14 PyTorch packages could not be installed."
     }
 }
 
@@ -471,7 +481,7 @@ if ($InstallerLogicSelfTest) {
             throw "GPU channel selection failed."
         }
         if (-not (Test-SupportedAmdGpuName -Name "AMD Radeon RX 7900 XTX") -or
-            (Test-SupportedAmdGpuName -Name "AMD Radeon RX 7600")) {
+            (Test-SupportedAmdGpuName -Name "AMD Radeon RX 580")) {
             throw "AMD ROCm support-list validation failed."
         }
         $amdProbe = Get-TorchProbeCode -GpuProfile ([pscustomobject]@{
@@ -522,7 +532,7 @@ Write-Host "========================================" -ForegroundColor Cyan
 $gpuProfile = Get-GpuProfile
 $requiredPython = if ($gpuProfile.Vendor -eq "amd") { "3.12" } else { $null }
 if ($gpuProfile.Vendor -eq "amd") {
-    Write-Host "AMD ROCm beta requires Windows 11, Python 3.12, and Radeon driver 26.2.2." -ForegroundColor Yellow
+    Write-Host "AMD ROCm beta requires Windows 11, Python 3.12, and a ROCm 7.14-compatible Radeon driver." -ForegroundColor Yellow
 }
 $python = Find-SupportedPython -RequiredVersion $requiredPython
 if (-not $python) {
@@ -583,7 +593,7 @@ Write-Host "Graphics card: $($gpuProfile.Name); backend: $($gpuProfile.Vendor)" 
 
 if (-not (Test-PythonCommand -Command $venvPython -Code $torchProbe)) {
     if ($gpuProfile.Vendor -eq "amd") {
-        Write-Host "Installing AMD ROCm 7.2.1 and compatible PyTorch..." -ForegroundColor Green
+        Write-Host "Installing AMD ROCm 7.14 and compatible PyTorch..." -ForegroundColor Green
         if (Test-VisualCppRuntime) {
             Write-Host "Visual C++ Runtime is already installed and valid." -ForegroundColor Yellow
         } elseif (Get-Command winget -ErrorAction SilentlyContinue) {
