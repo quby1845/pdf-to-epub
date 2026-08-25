@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.12.2] - 2026-08-25
+
 ### Fixed
 
 - Upgrade the Windows AMD backend to AMD's ROCm 7.14 / PyTorch 2.12 packages and require a
