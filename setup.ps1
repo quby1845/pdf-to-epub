@@ -406,13 +406,22 @@ function Install-AmdRocmPyTorch {
     )
     $torchPackages = @(
         "$base/torch-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
+        "$base/torchaudio-2.9.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl",
         "$base/torchvision-0.24.1%2Brocm7.2.1-cp312-cp312-win_amd64.whl"
     )
     & $PythonCommand -m pip install --no-cache-dir @sdkPackages
     if ($LASTEXITCODE -ne 0) {
         throw "AMD ROCm 7.2.1 components could not be installed."
     }
-    & $PythonCommand -m pip install --no-cache-dir --force-reinstall @torchPackages
+    # AMD's Windows wheels depend on the ROCm metapackage installed above.
+    # --force-reinstall makes pip try to reinstall that dependency from PyPI,
+    # where rocm 7.2.1 does not exist. Remove only the PyTorch distributions,
+    # then use AMD's documented direct-wheel installation without that flag.
+    & $PythonCommand -m pip uninstall --yes torch torchvision torchaudio
+    if ($LASTEXITCODE -ne 0) {
+        throw "Existing AMD PyTorch packages could not be removed."
+    }
+    & $PythonCommand -m pip install --no-cache-dir @torchPackages
     if ($LASTEXITCODE -ne 0) {
         throw "AMD ROCm PyTorch packages could not be installed."
     }

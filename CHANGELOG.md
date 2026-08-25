@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- Follow AMD's documented Windows ROCm wheel installation sequence without pip's
+  `--force-reinstall`, which incorrectly searched PyPI for the ROCm 7.2.1 metapackage and
+  aborted after downloading the GPU packages. Include the matching official `torchaudio`
+  wheel and remove only existing PyTorch distributions before repair.
+
 ## [0.12.0] - 2026-08-24
 
 ### Added
