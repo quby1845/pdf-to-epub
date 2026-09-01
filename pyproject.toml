@@ -30,7 +30,7 @@ classifiers = [
   "Topic :: Utilities",
 ]
 dependencies = [
-  "cryptography>=45,<47",
+  "cryptography>=45,<51",
   "huggingface-hub>=0.36,<0.37",
   "pdf-craft>=1.0.14,<2",
   "platformdirs>=4.3,<5",
